@@ -1,0 +1,41 @@
+
+export interface IMemberFormInput {
+    mem_id?: number;
+    member_no?: string;
+    member_name: string;
+    mem_fname: string;
+    mem_add: string;
+    mem_age: number;
+    mem_gender: number | string;
+    mem_caste?: number | string;
+    mem_relig?: number | string;
+    mar_sts?: number | string;
+    mem_spose?: string;
+    mem_sage?: number;
+    mem_quf?: string;
+    branch_id: number | string;
+    area_vill: number | string;
+    mem_com?: number | string;
+    grp_id?: number | string;
+    mem_mob: string;
+    mem_conct?: string;
+    mem_aadhar: string;
+    mem_epic?: string;
+    mem_pan?: string;
+    sp_aadhar?: string;
+    sp_epic?: string;
+    boy_count?: number;
+    girl_count?: number;
+    mem_ocop?: string;
+    mem_minc?: number;
+    co_id: number | string;
+    adm_date: string;
+    adm_amt?: number;
+    share_amt?: number;
+    txn_mode: "Cash" | "Bank";
+    bank_id?: number | string;
+    bank_ref?: string;
+    mem_status?: number | string;
+    with_date?: string;
+    remarks?: string;
+}
