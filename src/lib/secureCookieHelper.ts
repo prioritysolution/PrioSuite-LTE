@@ -38,7 +38,10 @@ const Cookies = {
       sameSite: "strict",
       path: "/",
       ...options,
-      secure: true,
+      // Secure cookies are rejected by browsers on an HTTP LAN origin.
+      secure:
+        options.secure ??
+        (typeof window !== "undefined" && window.location.protocol === "https:"),
     };
     if (mergedOptions.sameSite) {
       const ss = String(mergedOptions.sameSite).toLowerCase();
