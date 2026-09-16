@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   openModal as openModalAction,
   closeModal as closeModalAction,
   setSearchTerm as setSearchTermAction,
+  resetState as resetStateAction,
   IArea,
 } from "./AreaMasterReducer";
 import {
@@ -126,6 +127,12 @@ export const useAreaHook = () => {
   const state = useSelector((state: RootState) => state.areaMaster);
 
   const [deleteTarget, setDeleteTarget] = useState<IArea | null>(null);
+
+  useEffect(() => {
+    return () => {
+      dispatch(resetStateAction());
+    };
+  }, [dispatch]);
 
   const form = useForm<IAreaFormInput>({
     resolver: yupResolver(areaSchema) as any,

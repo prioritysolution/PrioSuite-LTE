@@ -35,8 +35,10 @@ const holidayCalendarSlice = createSlice({
     setSearchTerm: (state, action: PayloadAction<string>) => {
       state.searchTerm = action.payload;
     },
+    resetState: () => initialState,
   },
 });
 
-export const { openModal, closeModal, setSearchTerm } = holidayCalendarSlice.actions;
+export const { openModal, closeModal, setSearchTerm, resetState } =
+  holidayCalendarSlice.actions;
 export default holidayCalendarSlice.reducer;

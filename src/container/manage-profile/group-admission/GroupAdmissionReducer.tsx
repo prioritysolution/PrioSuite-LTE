@@ -43,10 +43,7 @@ const groupAdmissionSlice = createSlice({
     setSearchId: (state, action: PayloadAction<string>) => {
       state.searchId = action.payload;
     },
-    resetFlow: (state) => {
-      state.isFormVisible = false;
-      state.editMode = false;
-    },
+    resetFlow: () => initialState,
   },
 });
 

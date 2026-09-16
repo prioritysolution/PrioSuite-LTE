@@ -23,16 +23,16 @@ export const AdditionalDetails = () => {
             name="boy_count"
             label="Boys"
             isNumeric={true}
-            maxLength={2}
-            placeholder="0-20"
+            maxLength={3}
+            placeholder="Enter count"
           />
           <InputField
             control={control}
             name="girl_count"
             label="Girls"
             isNumeric={true}
-            maxLength={2}
-            placeholder="0-20"
+            maxLength={3}
+            placeholder="Enter count"
           />
         </div>
       </div>

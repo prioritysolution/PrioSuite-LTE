@@ -34,8 +34,10 @@ const purposeMasterSlice = createSlice({
     setSearchTerm: (state, action: PayloadAction<string>) => {
       state.searchTerm = action.payload;
     },
+    resetState: () => initialState,
   },
 });
 
-export const { openModal, closeModal, setSearchTerm } = purposeMasterSlice.actions;
+export const { openModal, closeModal, setSearchTerm, resetState } =
+  purposeMasterSlice.actions;
 export default purposeMasterSlice.reducer;

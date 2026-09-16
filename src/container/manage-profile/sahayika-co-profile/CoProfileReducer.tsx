@@ -38,10 +38,7 @@ const coProfileSlice = createSlice({
     setEditMode: (state, action: PayloadAction<boolean>) => {
       state.editMode = action.payload;
     },
-    resetFlow: (state) => {
-      state.isFormVisible = false;
-      state.editMode = false;
-    },
+    resetFlow: () => initialState,
   },
 });
 

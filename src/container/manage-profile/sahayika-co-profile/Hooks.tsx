@@ -71,6 +71,12 @@ export const useCoProfileHook = () => {
   const dispatch = useDispatch<AppDispatch>();
   const state = useSelector((state: RootState) => state.coProfile);
 
+  useEffect(() => {
+    return () => {
+      dispatch(resetFlow());
+    };
+  }, [dispatch]);
+
   const methods = useForm<ICoFormInput & { flowMode?: "add" | "update" }>({
     defaultValues: { ...emptyFormValues, flowMode: "add" },
     resolver: yupResolver(coSchema) as any,

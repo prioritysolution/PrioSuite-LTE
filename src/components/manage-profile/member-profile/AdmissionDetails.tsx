@@ -36,12 +36,16 @@ export const AdmissionDetails = ({ editMode }: Props) => {
         user?.branch_id as number,
       ),
     enabled: !!user?.org_id,
+    staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: statusOpt } = useQuery({
     queryKey: ["opt", 2],
     queryFn: () => masterService.getApplicationOption(2),
     enabled: editMode,
+    staleTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const coOptions = extractList(coData).map((opt: any) => ({

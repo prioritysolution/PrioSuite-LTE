@@ -1,81 +1,150 @@
-import React from "react";
-import * as FaIcons from "react-icons/fa";
-import * as Fa6Icons from "react-icons/fa6";
-import * as MdIcons from "react-icons/md";
-import * as GiIcons from "react-icons/gi";
-import * as IoIcons from "react-icons/io";
-import * as Io5Icons from "react-icons/io5";
-import * as TiIcons from "react-icons/ti";
-import * as GoIcons from "react-icons/go";
-import * as SiIcons from "react-icons/si";
-import * as FiIcons from "react-icons/fi";
-import * as AiIcons from "react-icons/ai";
-import * as BsIcons from "react-icons/bs";
-import * as BiIcons from "react-icons/bi";
-import * as RiIcons from "react-icons/ri";
-import * as CgIcons from "react-icons/cg";
-import * as CiIcons from "react-icons/ci";
-import * as ImIcons from "react-icons/im";
-import * as VscIcons from "react-icons/vsc";
-import * as HiIcons from "react-icons/hi";
-import * as Hi2Icons from "react-icons/hi2";
-import * as TbIcons from "react-icons/tb";
-import * as GrIcons from "react-icons/gr";
+"use client";
 
-// Define the type for the icon sets
-type IconSets = {
-  [key: string]: Record<
-    string,
-    React.ComponentType<React.SVGProps<SVGSVGElement>>
-  >;
+import React, { useEffect, useState } from "react";
+import type { IconType } from "react-icons";
+
+type IconModule = Record<string, IconType>;
+type IconLoader = () => Promise<IconModule>;
+
+const setLoaders: Record<string, IconLoader> = {
+  fa: async () => (await import("react-icons/fa")) as unknown as IconModule,
+  fa6: async () => (await import("react-icons/fa6")) as unknown as IconModule,
+  md: async () => (await import("react-icons/md")) as unknown as IconModule,
+  gi: async () => (await import("react-icons/gi")) as unknown as IconModule,
+  io: async () => (await import("react-icons/io")) as unknown as IconModule,
+  io5: async () => (await import("react-icons/io5")) as unknown as IconModule,
+  ti: async () => (await import("react-icons/ti")) as unknown as IconModule,
+  go: async () => (await import("react-icons/go")) as unknown as IconModule,
+  si: async () => (await import("react-icons/si")) as unknown as IconModule,
+  fi: async () => (await import("react-icons/fi")) as unknown as IconModule,
+  ai: async () => (await import("react-icons/ai")) as unknown as IconModule,
+  bs: async () => (await import("react-icons/bs")) as unknown as IconModule,
+  bi: async () => (await import("react-icons/bi")) as unknown as IconModule,
+  ri: async () => (await import("react-icons/ri")) as unknown as IconModule,
+  cg: async () => (await import("react-icons/cg")) as unknown as IconModule,
+  ci: async () => (await import("react-icons/ci")) as unknown as IconModule,
+  im: async () => (await import("react-icons/im")) as unknown as IconModule,
+  vsc: async () => (await import("react-icons/vsc")) as unknown as IconModule,
+  hi: async () => (await import("react-icons/hi")) as unknown as IconModule,
+  hi2: async () => (await import("react-icons/hi2")) as unknown as IconModule,
+  tb: async () => (await import("react-icons/tb")) as unknown as IconModule,
+  gr: async () => (await import("react-icons/gr")) as unknown as IconModule,
 };
 
-// Map of all available icon sets
-const iconSets: IconSets = {
-  fa: { ...FaIcons, ...Fa6Icons },
-  md: MdIcons,
-  gi: GiIcons,
-  io: { ...IoIcons, ...Io5Icons },
-  ti: TiIcons,
-  go: GoIcons,
-  si: SiIcons,
-  fi: FiIcons,
-  ai: AiIcons,
-  bs: BsIcons,
-  bi: BiIcons,
-  ri: RiIcons,
-  cg: CgIcons,
-  ci: CiIcons,
-  im: ImIcons,
-  vsc: VscIcons,
-  hi: { ...HiIcons, ...Hi2Icons },
-  tb: TbIcons,
-  gr: GrIcons,
+/** Prefer the set that matches the icon name prefix. */
+const resolveSetKeys = (iconName: string, iconSet: string): string[] => {
+  const name = String(iconName || "");
+  const lower = name.toLowerCase();
+  const set = String(iconSet || "").toLowerCase();
+
+  if (lower.startsWith("fa6")) return ["fa6", "fa"];
+  if (lower.startsWith("fa")) return ["fa", "fa6"];
+  if (lower.startsWith("hi2")) return ["hi2", "hi"];
+  if (lower.startsWith("hi")) return ["hi", "hi2"];
+  if (lower.startsWith("io5")) return ["io5", "io"];
+  if (lower.startsWith("io")) return ["io", "io5"];
+  if (lower.startsWith("md")) return ["md"];
+  if (lower.startsWith("gi")) return ["gi"];
+  if (lower.startsWith("ti")) return ["ti"];
+  if (lower.startsWith("go")) return ["go"];
+  if (lower.startsWith("si")) return ["si"];
+  if (lower.startsWith("fi")) return ["fi"];
+  if (lower.startsWith("ai")) return ["ai"];
+  if (lower.startsWith("bs")) return ["bs"];
+  if (lower.startsWith("bi")) return ["bi"];
+  if (lower.startsWith("ri")) return ["ri"];
+  if (lower.startsWith("cg")) return ["cg"];
+  if (lower.startsWith("ci")) return ["ci"];
+  if (lower.startsWith("im")) return ["im"];
+  if (lower.startsWith("vsc")) return ["vsc"];
+  if (lower.startsWith("tb")) return ["tb"];
+  if (lower.startsWith("gr")) return ["gr"];
+
+  if (set === "fa") return ["fa", "fa6"];
+  if (set === "io") return ["io", "io5"];
+  if (set === "hi") return ["hi", "hi2"];
+  return set ? [set] : [];
 };
 
-// Props for IconDisplay
+const moduleCache = new Map<string, Promise<IconModule>>();
+const iconCache = new Map<string, IconType | null>();
+
+const loadIconSet = (setKey: string) => {
+  if (!moduleCache.has(setKey)) {
+    const loader = setLoaders[setKey];
+    moduleCache.set(
+      setKey,
+      loader
+        ? loader().catch(() => ({} as IconModule))
+        : Promise.resolve({} as IconModule),
+    );
+  }
+  return moduleCache.get(setKey)!;
+};
+
+const resolveIcon = async (
+  iconName: string,
+  iconSet: string,
+): Promise<IconType | null> => {
+  const cacheKey = `${iconSet}::${iconName}`;
+  if (iconCache.has(cacheKey)) return iconCache.get(cacheKey) ?? null;
+
+  for (const setKey of resolveSetKeys(iconName, iconSet)) {
+    const mod = await loadIconSet(setKey);
+    const Icon = mod[iconName];
+    if (Icon) {
+      iconCache.set(cacheKey, Icon);
+      return Icon;
+    }
+  }
+
+  iconCache.set(cacheKey, null);
+  return null;
+};
+
 interface IconDisplayProps {
   iconName: string;
-  iconSet: keyof typeof iconSets;
+  iconSet: string;
   className?: string;
   style?: React.CSSProperties;
-  [key: string]: any; // To support other HTML or React props
+  [key: string]: unknown;
 }
 
-// Function to get the icon component based on the string name
-const getIcon = (iconName: string, iconSet: keyof typeof iconSets) => {
-  // Get the correct icon component
-  const IconComponent = iconSets[iconSet]?.[iconName];
-  return IconComponent ? <IconComponent /> : null;
-};
-
-// Component to display the icon
 const IconDisplay: React.FC<IconDisplayProps> = ({
   iconName,
   iconSet,
   ...rest
 }) => {
-  return <span {...rest}>{getIcon(iconName, iconSet)}</span>;
+  const [Icon, setIcon] = useState<IconType | null>(() => {
+    const cacheKey = `${iconSet}::${iconName}`;
+    return iconCache.get(cacheKey) ?? null;
+  });
+
+  useEffect(() => {
+    if (!iconName) {
+      setIcon(null);
+      return;
+    }
+
+    let cancelled = false;
+    resolveIcon(iconName, iconSet).then((resolved) => {
+      if (!cancelled) setIcon(() => resolved);
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [iconName, iconSet]);
+
+  if (!Icon) {
+    return <span {...rest} aria-hidden="true" />;
+  }
+
+  return (
+    <span {...rest}>
+      <Icon />
+    </span>
+  );
 };
 
 export default IconDisplay;

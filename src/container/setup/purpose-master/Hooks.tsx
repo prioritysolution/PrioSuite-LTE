@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   openModal as openModalAction,
   closeModal as closeModalAction,
   setSearchTerm as setSearchTermAction,
+  resetState as resetStateAction,
   IPurpose,
 } from "./PurposeMasterReducer";
 import {
@@ -44,6 +45,12 @@ export const usePurposeHook = () => {
   const state = useSelector((state: RootState) => state.purposeMaster);
 
   const [deleteTarget, setDeleteTarget] = useState<IPurpose | null>(null);
+
+  useEffect(() => {
+    return () => {
+      dispatch(resetStateAction());
+    };
+  }, [dispatch]);
 
   const form = useForm<IPurposeFormInput>({
     resolver: yupResolver(purposeSchema) as any,

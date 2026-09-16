@@ -104,6 +104,12 @@ export const useGroupAdmissionHook = () => {
   const dispatch = useDispatch<AppDispatch>();
   const state = useSelector((state: RootState) => state.groupAdmission);
 
+  useEffect(() => {
+    return () => {
+      dispatch(resetFlow());
+    };
+  }, [dispatch]);
+
   const methods = useForm<IGroupFormInput & { flowMode: "add" | "update" }>({
     defaultValues: {
       txn_mode: "Cash",

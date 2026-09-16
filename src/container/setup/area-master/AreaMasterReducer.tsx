@@ -43,8 +43,10 @@ const areaMasterSlice = createSlice({
     setSearchTerm: (state, action: PayloadAction<string>) => {
       state.searchTerm = action.payload;
     },
+    resetState: () => initialState,
   },
 });
 
-export const { openModal, closeModal, setSearchTerm } = areaMasterSlice.actions;
+export const { openModal, closeModal, setSearchTerm, resetState } =
+  areaMasterSlice.actions;
 export default areaMasterSlice.reducer;

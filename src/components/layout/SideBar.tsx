@@ -1,11 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
-import { ChevronDown, ChevronUp, Home, X } from "lucide-react";
-import { MdArrowLeft } from "react-icons/md";
+import { ChevronDown, ChevronUp, ChevronLeft, Home, X } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import Image from "next/image";
 import IconDisplay from "@/common/IconDisplay";
@@ -101,7 +100,6 @@ const SideBar = ({
   endDate,
 }: SideBarProps) => {
   const pathname = usePathname();
-  const router = useRouter();
   if (!isMounted) {
     return (
       <div className="w-64 h-full flex flex-col bg-[#00264D]">
@@ -166,10 +164,11 @@ const SideBar = ({
         ) : (
           <div className="space-y-1.5">
             <div>
-              <button
+              <Link
+                href="/dashboard"
+                prefetch={false}
                 onClick={() => {
                   handleExpandedLink("");
-                  router.replace("/dashboard");
                   closeMobileMenu?.();
                 }}
                 className={cn(
@@ -185,7 +184,7 @@ const SideBar = ({
                   </span>
                   <span className="truncate text-[15px]">Dashboard</span>
                 </span>
-              </button>
+              </Link>
             </div>
 
             {sideBarData.map((menu: any, id: number) => {
@@ -207,61 +206,97 @@ const SideBar = ({
 
               return (
                 <div key={menu.menu_id || menu.Menu_Id || id}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      if (hasChildren) {
-                        handleExpandedLink(menuName);
-                        return;
-                      }
-                      if (!menuPath) return;
-                      handleExpandedLink("");
-                      router.replace(menuPath);
-                      closeMobileMenu?.();
-                    }}
-                    className={cn(
-                      "w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group",
-                      hasChildren || menuPath
-                        ? "cursor-pointer"
-                        : "cursor-default",
-                      isActive
-                        ? "bg-[#14B8A6] text-white shadow-sm"
-                        : "text-white/85 hover:text-white border border-white/20",
-                    )}
-                  >
-                    <span className="flex items-center gap-3 min-w-0">
-                      <span className="text-[20px] flex-shrink-0 transition-colors text-white">
-                        {menu.icon || menu.icon_name || menu.Icon ? (
-                          <IconDisplay
-                            iconName={
-                              menu.icon || menu.icon_name || menu.Icon
-                            }
-                            iconSet={(
-                              menu.icon ||
-                              menu.icon_name ||
-                              menu.Icon
-                            )
-                              .slice(0, 2)
-                              .toLowerCase()}
-                            className="text-xl"
-                          />
-                        ) : (
-                          <></>
-                        )}
+                  {hasChildren || !menuPath ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (hasChildren) {
+                          handleExpandedLink(menuName);
+                          return;
+                        }
+                      }}
+                      className={cn(
+                        "w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group",
+                        hasChildren || menuPath
+                          ? "cursor-pointer"
+                          : "cursor-default",
+                        isActive
+                          ? "bg-[#14B8A6] text-white shadow-sm"
+                          : "text-white/85 hover:text-white border border-white/20",
+                      )}
+                    >
+                      <span className="flex items-center gap-3 min-w-0">
+                        <span className="text-[20px] flex-shrink-0 transition-colors text-white">
+                          {menu.icon || menu.icon_name || menu.Icon ? (
+                            <IconDisplay
+                              iconName={
+                                menu.icon || menu.icon_name || menu.Icon
+                              }
+                              iconSet={(
+                                menu.icon ||
+                                menu.icon_name ||
+                                menu.Icon
+                              )
+                                .slice(0, 2)
+                                .toLowerCase()}
+                              className="text-xl"
+                            />
+                          ) : (
+                            <></>
+                          )}
+                        </span>
+                        <span className="truncate text-[15px]">{menuName}</span>
                       </span>
-                      <span className="truncate text-[15px]">{menuName}</span>
-                    </span>
 
-                    {hasChildren && (
-                      <span className="flex-shrink-0 text-white/60">
-                        {isExpanded ? (
-                          <ChevronUp className="text-base" />
-                        ) : (
-                          <ChevronDown className="text-base" />
-                        )}
+                      {hasChildren && (
+                        <span className="flex-shrink-0 text-white/60">
+                          {isExpanded ? (
+                            <ChevronUp className="text-base" />
+                          ) : (
+                            <ChevronDown className="text-base" />
+                          )}
+                        </span>
+                      )}
+                    </button>
+                  ) : (
+                    <Link
+                      href={menuPath}
+                      prefetch={false}
+                      onClick={() => {
+                        handleExpandedLink("");
+                        closeMobileMenu?.();
+                      }}
+                      className={cn(
+                        "w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 group cursor-pointer",
+                        isActive
+                          ? "bg-[#14B8A6] text-white shadow-sm"
+                          : "text-white/85 hover:text-white border border-white/20",
+                      )}
+                    >
+                      <span className="flex items-center gap-3 min-w-0">
+                        <span className="text-[20px] flex-shrink-0 transition-colors text-white">
+                          {menu.icon || menu.icon_name || menu.Icon ? (
+                            <IconDisplay
+                              iconName={
+                                menu.icon || menu.icon_name || menu.Icon
+                              }
+                              iconSet={(
+                                menu.icon ||
+                                menu.icon_name ||
+                                menu.Icon
+                              )
+                                .slice(0, 2)
+                                .toLowerCase()}
+                              className="text-xl"
+                            />
+                          ) : (
+                            <></>
+                          )}
+                        </span>
+                        <span className="truncate text-[15px]">{menuName}</span>
                       </span>
-                    )}
-                  </button>
+                    </Link>
+                  )}
 
                   {hasChildren && isExpanded && (
                     <div
@@ -297,30 +332,28 @@ const SideBar = ({
                             : "cursor-default",
                         );
 
-                        // Route present → link/navigate; Route null → show label only
+                        // Route present → link (no prefetch); Route null → label only
                         if (canLink) {
                           return (
-                            <button
-                              type="button"
+                            <Link
                               key={
                                 sub.sub_menu_id ||
                                 sub.Sub_Menu_Id ||
                                 sub.SubMenu_Id ||
                                 idx
                               }
-                              onClick={() => {
-                                router.push(subPath);
-                                closeMobileMenu?.();
-                              }}
+                              href={subPath}
+                              prefetch={false}
+                              onClick={() => closeMobileMenu?.()}
                               className={itemClass}
                             >
                               <span className="text-[13.5px] tracking-wide truncate">
                                 {subName}
                               </span>
                               {isChildActive && (
-                                <MdArrowLeft className="text-lg text-white/70 flex-shrink-0" />
+                                <ChevronLeft className="w-4 h-4 text-white/70 flex-shrink-0" />
                               )}
-                            </button>
+                            </Link>
                           );
                         }
 

@@ -187,12 +187,10 @@ const memberSchema = yup.object().shape({
   ),
   boy_count: optionalNumber()
     .integer("Boys must be a whole number")
-    .min(0, "Boys cannot be less than 0")
-    .max(20, "Boys cannot be more than 20"),
+    .min(0, "Boys cannot be less than 0"),
   girl_count: optionalNumber()
     .integer("Girls must be a whole number")
-    .min(0, "Girls cannot be less than 0")
-    .max(20, "Girls cannot be more than 20"),
+    .min(0, "Girls cannot be less than 0"),
   mem_minc: optionalNumber()
     .min(0, "Monthly income cannot be less than 0")
     .max(9999999, "Enter a valid monthly income"),
@@ -234,6 +232,12 @@ export const useMemberProfileHook = () => {
   const dispatch = useDispatch<AppDispatch>();
   const state = useSelector((state: RootState) => state.memberProfile);
 
+  useEffect(() => {
+    return () => {
+      dispatch(resetFlow());
+    };
+  }, [dispatch]);
+
   const methods = useForm<IMemberFormInput & { flowMode?: "add" | "update" }>({
     defaultValues: {
       txn_mode: "Cash",
@@ -249,6 +253,8 @@ export const useMemberProfileHook = () => {
     queryFn: () =>
       getMiscConfigAPI(user?.org_id as number, user?.branch_id as number),
     enabled: !!user?.org_id,
+    staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const defaultAdmAmt = extractMiscField(miscConfig, [

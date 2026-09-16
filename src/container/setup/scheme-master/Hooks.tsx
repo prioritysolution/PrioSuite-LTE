@@ -1,11 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   openModal as openModalAction,
   closeModal as closeModalAction,
   setSearchTerm as setSearchTermAction,
+  resetState as resetStateAction,
   IScheme,
 } from "./SchemeMasterReducer";
 import {
@@ -148,6 +149,12 @@ export const useSchemeHook = () => {
 
   const [deleteTarget, setDeleteTarget] = useState<IScheme | null>(null);
 
+  useEffect(() => {
+    return () => {
+      dispatch(resetStateAction());
+    };
+  }, [dispatch]);
+
   const form = useForm<ISchemeFormInput>({
     resolver: yupResolver(schemeSchema) as any,
     defaultValues: emptyFormValues,
@@ -167,18 +174,24 @@ export const useSchemeHook = () => {
     queryKey: ["schemeList", user?.org_id],
     queryFn: () => getSchemeListAPI(user?.org_id as number),
     enabled: !!user?.org_id,
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: repayModeData, isLoading: repayModeLoading } = useQuery({
     queryKey: ["repayModeOption", REPAY_MODE_GROUP_ID],
     queryFn: () => getApplicationOptionAPI(REPAY_MODE_GROUP_ID),
     enabled: !!user?.org_id,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: ledgerData, isLoading: ledgerLoading } = useQuery({
     queryKey: ["schemeLedgerList", user?.org_id],
     queryFn: () => getLedgerListAPI(user?.org_id as number),
     enabled: !!user?.org_id,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const isLoading = !isMounted || queryLoading;

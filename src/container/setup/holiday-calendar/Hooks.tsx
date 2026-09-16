@@ -1,11 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   openModal as openModalAction,
   closeModal as closeModalAction,
   setSearchTerm as setSearchTermAction,
+  resetState as resetStateAction,
   IHoliday,
 } from "./HolidayCalendarReducer";
 import {
@@ -41,6 +42,12 @@ export const useHolidayHook = () => {
 
   const [deleteTarget, setDeleteTarget] = useState<IHoliday | null>(null);
 
+  useEffect(() => {
+    return () => {
+      dispatch(resetStateAction());
+    };
+  }, [dispatch]);
+
   const form = useForm<IHolidayFormInput>({
     resolver: yupResolver(holidaySchema) as any,
   });
@@ -58,6 +65,8 @@ export const useHolidayHook = () => {
     queryKey: ["holidayList", user?.org_id],
     queryFn: () => getHolidayListAPI(user?.org_id as number),
     enabled: !!user?.org_id,
+    staleTime: 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const isLoading = !isMounted || queryLoading;

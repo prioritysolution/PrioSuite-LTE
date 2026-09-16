@@ -27,24 +27,34 @@ export const BasicDetails = (_props: Props) => {
   const { data: genderOpt } = useQuery({
     queryKey: ["opt", 4],
     queryFn: () => masterService.getApplicationOption(4),
+    staleTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
   const { data: religionOpt } = useQuery({
     queryKey: ["opt", 5],
     queryFn: () => masterService.getApplicationOption(5),
+    staleTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
   const { data: casteOpt } = useQuery({
     queryKey: ["opt", 6],
     queryFn: () => masterService.getApplicationOption(6),
+    staleTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
   const { data: maritalOpt } = useQuery({
     queryKey: ["opt", 7],
     queryFn: () => masterService.getApplicationOption(7),
+    staleTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: branchData, isLoading: branchLoading } = useQuery({
     queryKey: ["branchList", user?.org_id],
     queryFn: () => getBranchListAPI(user?.org_id as number),
     enabled: !!user?.org_id,
+    staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: areaData, isLoading: areaLoading } = useQuery({
@@ -55,6 +65,8 @@ export const BasicDetails = (_props: Props) => {
         Number(selectedBranchId),
       ),
     enabled: !!user?.org_id && !!selectedBranchId,
+    staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const { data: groupData } = useQuery({
@@ -65,6 +77,8 @@ export const BasicDetails = (_props: Props) => {
         Number(selectedBranchId),
       ),
     enabled: !!user?.org_id && !!selectedBranchId,
+    staleTime: 10 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const genderOptions = extractList(genderOpt).map((opt: any) => ({

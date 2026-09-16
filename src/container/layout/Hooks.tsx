@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useGlobalContext } from "@/context/GlobalContext";
 import { masterService } from "@/services/master.service";
 import { useQuery } from "@tanstack/react-query";
@@ -19,55 +19,59 @@ export const useSideBarHook = () => {
     queryKey: ["sidebar-data", user?.org_id],
     queryFn: () => masterService.getSidebarData(user?.org_id as number),
     enabled: !!user?.org_id,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const handleExpandedLink = (title: string) => {
     setExpandedLink((prev) => (prev !== title ? title : ""));
   };
 
-  const rawSideBarData = Array.isArray(
-    (sideBarResponse as any)?.data?.Data ??
-      (sideBarResponse as any)?.Data ??
-      (sideBarResponse as any)?.data,
-  )
-    ? ((sideBarResponse as any)?.data?.Data ??
-      (sideBarResponse as any)?.Data ??
-      (sideBarResponse as any)?.data)
-    : [];
+  const sideBarData = useMemo(() => {
+    const rawSideBarData = Array.isArray(
+      (sideBarResponse as any)?.data?.Data ??
+        (sideBarResponse as any)?.Data ??
+        (sideBarResponse as any)?.data,
+    )
+      ? ((sideBarResponse as any)?.data?.Data ??
+        (sideBarResponse as any)?.Data ??
+        (sideBarResponse as any)?.data)
+      : [];
 
-  // Normalize GetSidebar / mst_menus payload so all SubMenu_Name entries render
-  const sideBarData = rawSideBarData.map((menu: any) => {
-    const submenus =
-      menu?.submenus ??
-      menu?.SubMenus ??
-      menu?.sub_menus ??
-      menu?.children ??
-      [];
+    return rawSideBarData.map((menu: any) => {
+      const submenus =
+        menu?.submenus ??
+        menu?.SubMenus ??
+        menu?.sub_menus ??
+        menu?.children ??
+        [];
 
-    return {
-      ...menu,
-      menu_name:
-        menu?.menu_name || menu?.Menu_Name || menu?.menuName || menu?.name,
-      menu_id: menu?.menu_id || menu?.Menu_Id || menu?.id,
-      route: menu?.route ?? menu?.Route ?? null,
-      icon: menu?.icon || menu?.icon_name || menu?.Icon,
-      submenus: (Array.isArray(submenus) ? submenus : []).map((sub: any) => ({
-        ...sub,
-        sub_menu_name:
-          sub?.SubMenu_Name ||
-          sub?.sub_menu_name ||
-          sub?.submenu_name ||
-          sub?.Sub_Menu_Name ||
-          sub?.name,
-        sub_menu_id:
-          sub?.sub_menu_id ||
-          sub?.Sub_Menu_Id ||
-          sub?.SubMenu_Id ||
-          sub?.id,
-        route: sub?.route ?? sub?.Route ?? null,
-      })),
-    };
-  });
+      return {
+        ...menu,
+        menu_name:
+          menu?.menu_name || menu?.Menu_Name || menu?.menuName || menu?.name,
+        menu_id: menu?.menu_id || menu?.Menu_Id || menu?.id,
+        route: menu?.route ?? menu?.Route ?? null,
+        icon: menu?.icon || menu?.icon_name || menu?.Icon,
+        submenus: (Array.isArray(submenus) ? submenus : []).map((sub: any) => ({
+          ...sub,
+          sub_menu_name:
+            sub?.SubMenu_Name ||
+            sub?.sub_menu_name ||
+            sub?.submenu_name ||
+            sub?.Sub_Menu_Name ||
+            sub?.name,
+          sub_menu_id:
+            sub?.sub_menu_id ||
+            sub?.Sub_Menu_Id ||
+            sub?.SubMenu_Id ||
+            sub?.id,
+          route: sub?.route ?? sub?.Route ?? null,
+        })),
+      };
+    });
+  }, [sideBarResponse]);
 
   const endDate = getCookieData("priobank-lite-fin_end_date");
 
@@ -93,7 +97,6 @@ export const useFooterHook = () => {
   useEffect(() => {
     setMounted(true);
     setBranchName(getCookieData("priobank-lite-userBranchName") || "");
-    setStartDate(getCookieData("priobank-lite-fin_end_date") || ""); // Wait, original had fin_start_date but users had:
     const start = getCookieData("priobank-lite-fin_start_date") || "";
     const end = getCookieData("priobank-lite-fin_end_date") || "";
     setStartDate(start);

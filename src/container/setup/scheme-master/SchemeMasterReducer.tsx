@@ -45,8 +45,10 @@ const schemeMasterSlice = createSlice({
     setSearchTerm: (state, action: PayloadAction<string>) => {
       state.searchTerm = action.payload;
     },
+    resetState: () => initialState,
   },
 });
 
-export const { openModal, closeModal, setSearchTerm } = schemeMasterSlice.actions;
+export const { openModal, closeModal, setSearchTerm, resetState } =
+  schemeMasterSlice.actions;
 export default schemeMasterSlice.reducer;

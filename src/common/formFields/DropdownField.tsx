@@ -15,7 +15,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 
-import { ChevronDown, Check } from "lucide-react";
+import { ChevronDown, Check, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Spinner } from "@/components/ui/spinner";
 
@@ -40,6 +40,8 @@ interface DropdownProps<T extends FieldValues> {
   searchPlaceholder?: string;
   placeholder?: string;
   rules?: any;
+  /** Show clear (X) after a value is selected. Defaults to true. */
+  allowClear?: boolean;
 }
 
 const DropdownField = <T extends FieldValues>({
@@ -63,6 +65,7 @@ const DropdownField = <T extends FieldValues>({
   searchPlaceholder = "",
   placeholder,
   rules,
+  allowClear = true,
 }: DropdownProps<T>) => {
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -234,6 +237,19 @@ const DropdownField = <T extends FieldValues>({
     }
   }, [open, isInteractive, value, options]);
 
+  const handleClear = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!isInteractive) return;
+    setSearchVal("");
+    setOpen(false);
+    onChange("");
+  };
+
+  const hasValue =
+    value !== null && value !== undefined && String(value).trim() !== "";
+  const showClear = allowClear && hasValue && !isDisabled && !isLoading;
+
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!isInteractive) return;
     setSearchVal(e.target.value);
@@ -309,7 +325,8 @@ const DropdownField = <T extends FieldValues>({
                 }
                 className={cn(
                   "flex items-center w-full justify-between font-normal text-[15px]",
-                  "border-[1.5px] rounded-md h-auto py-2.5 pl-3.5 pr-10 bg-background transition-all duration-150 outline-none",
+                  "border-[1.5px] rounded-md h-auto py-2.5 pl-3.5 bg-background transition-all duration-150 outline-none",
+                  showClear ? "pr-16" : "pr-10",
                   "focus:border-ring focus:ring-4 focus:ring-ring/18",
                   hasError
                     ? "border-destructive focus:ring-destructive/15 focus:border-destructive"
@@ -318,8 +335,23 @@ const DropdownField = <T extends FieldValues>({
                     "bg-slate-50 cursor-not-allowed border-slate-300 text-slate-900 opacity-50",
                 )}
               />
-              <div className="absolute right-3.5 top-1/2 -translate-y-1/2 flex items-center gap-1.5">
+              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 flex items-center gap-0.5">
                 {isLoading && <Spinner />}
+                {showClear && (
+                  <button
+                    type="button"
+                    aria-label="Clear selection"
+                    className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-slate-100 transition-colors focus:outline-none"
+                    tabIndex={-1}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    }}
+                    onClick={handleClear}
+                  >
+                    <X className="h-3.5 w-3.5" />
+                  </button>
+                )}
                 <button
                   ref={buttonRef}
                   type="button"
