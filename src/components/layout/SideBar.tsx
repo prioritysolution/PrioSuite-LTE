@@ -167,7 +167,12 @@ const SideBar = ({
               <Link
                 href="/dashboard"
                 prefetch={false}
-                onClick={() => {
+                onClick={(e) => {
+                  if (pathname === "/dashboard") {
+                    e.preventDefault();
+                    closeMobileMenu?.();
+                    return;
+                  }
                   handleExpandedLink("");
                   closeMobileMenu?.();
                 }}
@@ -191,7 +196,6 @@ const SideBar = ({
               const menuName = getMenuName(menu);
               const submenus = getSubMenus(menu);
               const hasChildren = submenus.length > 0;
-              const isExpanded = menuName === expandedLink;
               const menuPath = resolveMenuPath(menu);
 
               const hasActiveChild =
@@ -203,6 +207,8 @@ const SideBar = ({
 
               const isActive =
                 hasActiveChild || (!!menuPath && pathname === menuPath);
+              const isExpanded =
+                menuName === expandedLink || hasActiveChild;
 
               return (
                 <div key={menu.menu_id || menu.Menu_Id || id}>
@@ -262,7 +268,12 @@ const SideBar = ({
                     <Link
                       href={menuPath}
                       prefetch={false}
-                      onClick={() => {
+                      onClick={(e) => {
+                        if (pathname === menuPath) {
+                          e.preventDefault();
+                          closeMobileMenu?.();
+                          return;
+                        }
                         handleExpandedLink("");
                         closeMobileMenu?.();
                       }}
@@ -344,7 +355,14 @@ const SideBar = ({
                               }
                               href={subPath}
                               prefetch={false}
-                              onClick={() => closeMobileMenu?.()}
+                              onClick={(e) => {
+                                if (pathname === subPath) {
+                                  e.preventDefault();
+                                  closeMobileMenu?.();
+                                  return;
+                                }
+                                closeMobileMenu?.();
+                              }}
                               className={itemClass}
                             >
                               <span className="text-[13.5px] tracking-wide truncate">

@@ -124,14 +124,34 @@ export const useHolidayHook = () => {
         org_id: user?.org_id as number,
       });
     },
-    onSuccess: () => {
+    onSuccess: (res: any) => {
+      const message = String(res?.message || res?.massage || "").trim();
+      const details = String(res?.details || "").trim();
+      const combined = `${message} ${details}`.toLowerCase();
+      const isFailure =
+        message.toLowerCase() === "error found" ||
+        combined.includes("cannot") ||
+        combined.includes("fail") ||
+        combined.includes("unable") ||
+        (combined.includes("error") && !combined.includes("success"));
+
+      if (isFailure) {
+        toast.error(
+          details || message || "Failed to delete holiday. Please try again.",
+        );
+        return;
+      }
+
       toast.success("Holiday deleted successfully!");
       queryClient.invalidateQueries({ queryKey: ["holidayList"] });
       setDeleteTarget(null);
     },
     onError: (error: any) => {
+      const data = error?.response?.data;
       toast.error(
-        error?.response?.data?.message ||
+        data?.details ||
+          data?.message ||
+          error?.message ||
           "Failed to delete holiday. Please try again.",
       );
     },

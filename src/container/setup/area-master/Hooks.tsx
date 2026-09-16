@@ -265,8 +265,11 @@ export const useAreaHook = () => {
       closeModal();
     },
     onError: (error: any) => {
+      const data = error?.response?.data;
       toast.error(
-        error?.response?.data?.message || "Operation failed. Please try again.",
+        data?.details ||
+          data?.message ||
+          "Operation failed. Please try again.",
       );
     },
   });
@@ -285,14 +288,35 @@ export const useAreaHook = () => {
           (user?.branch_id as number),
       });
     },
-    onSuccess: () => {
+    onSuccess: (res: any) => {
+      const message = String(res?.message || res?.massage || "").trim();
+      const details = String(res?.details || "").trim();
+      const combined = `${message} ${details}`.toLowerCase();
+      const isFailure =
+        message.toLowerCase() === "error found" ||
+        combined.includes("cannot") ||
+        combined.includes("fail") ||
+        combined.includes("unable") ||
+        (combined.includes("error") && !combined.includes("success"));
+
+      if (isFailure) {
+        toast.error(
+          details || message || "Failed to delete area. Please try again.",
+        );
+        return;
+      }
+
       toast.success("Area deleted successfully!");
       queryClient.invalidateQueries({ queryKey: ["areaList"] });
       setDeleteTarget(null);
     },
     onError: (error: any) => {
+      const data = error?.response?.data;
       toast.error(
-        error?.response?.data?.message || "Failed to delete area. Please try again.",
+        data?.details ||
+          data?.message ||
+          error?.message ||
+          "Failed to delete area. Please try again.",
       );
     },
   });

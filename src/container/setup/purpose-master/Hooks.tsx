@@ -174,18 +174,20 @@ export const usePurposeHook = () => {
       });
     },
     onSuccess: (res: any) => {
-      const message =
-        res?.message || res?.massage || res?.details || res?.data?.message || "";
-      const normalizedMsg = String(message).toLowerCase();
+      const message = String(res?.message || res?.massage || "").trim();
+      const details = String(res?.details || "").trim();
+      const combined = `${message} ${details}`.toLowerCase();
       const isFailure =
-        !!normalizedMsg &&
-        (normalizedMsg.includes("fail") ||
-          normalizedMsg.includes("error") ||
-          normalizedMsg.includes("cannot") ||
-          normalizedMsg.includes("unable"));
+        message.toLowerCase() === "error found" ||
+        combined.includes("cannot") ||
+        combined.includes("fail") ||
+        combined.includes("unable") ||
+        (combined.includes("error") && !combined.includes("success"));
 
-      if (isFailure && !normalizedMsg.includes("success")) {
-        toast.error(message || "Failed to delete purpose. Please try again.");
+      if (isFailure) {
+        toast.error(
+          details || message || "Failed to delete purpose. Please try again.",
+        );
         return;
       }
 
@@ -194,8 +196,10 @@ export const usePurposeHook = () => {
       setDeleteTarget(null);
     },
     onError: (error: any) => {
+      const data = error?.response?.data;
       toast.error(
-        error?.response?.data?.message ||
+        data?.details ||
+          data?.message ||
           error?.message ||
           "Failed to delete purpose. Please try again.",
       );

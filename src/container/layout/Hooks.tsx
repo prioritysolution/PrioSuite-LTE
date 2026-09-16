@@ -1,13 +1,56 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useMemo } from "react";
+import { usePathname } from "next/navigation";
 import { useGlobalContext } from "@/context/GlobalContext";
 import { masterService } from "@/services/master.service";
 import { useQuery } from "@tanstack/react-query";
 import getCookieData from "@/lib/getCookieData";
 
+const getRawRoute = (item: any): string | null => {
+  const raw =
+    item?.route ??
+    item?.Route ??
+    item?.menu_route ??
+    item?.Menu_Route ??
+    null;
+
+  if (raw === null || raw === undefined) return null;
+  const trimmed = String(raw).trim();
+  if (!trimmed || trimmed.toLowerCase() === "null") return null;
+  return trimmed;
+};
+
+const resolveMenuPath = (item: any): string | null => {
+  let path = getRawRoute(item);
+  if (!path) return null;
+
+  if (!path.startsWith("/")) {
+    path = `/${path}`;
+  }
+
+  if (path.includes("group-loan")) {
+    path = path.replace("group-loan", "new-application");
+  }
+
+  const schemeAliases = new Set([
+    "/setup/scheme",
+    "/setup/schemes",
+    "/setup/loan-scheme",
+    "/setup/loan-scheme-master",
+    "/setup/scheme-setup",
+  ]);
+
+  if (schemeAliases.has(path)) {
+    path = "/setup/scheme-master";
+  }
+
+  return path;
+};
+
 export const useSideBarHook = () => {
   const { user } = useGlobalContext();
+  const pathname = usePathname();
   const [expandedLink, setExpandedLink] = useState<string>("");
   const [isMounted, setIsMounted] = useState(false);
 
@@ -72,6 +115,26 @@ export const useSideBarHook = () => {
       };
     });
   }, [sideBarResponse]);
+
+  useEffect(() => {
+    if (!sideBarData.length || !pathname) return;
+
+    const activeParent = sideBarData.find((menu: any) => {
+      const submenus = Array.isArray(menu?.submenus) ? menu.submenus : [];
+      if (submenus.length === 0) return false;
+      return submenus.some((sub: any) => {
+        const subPath = resolveMenuPath(sub);
+        return !!subPath && pathname === subPath;
+      });
+    });
+
+    if (!activeParent) return;
+
+    const menuName = String(activeParent.menu_name || "").trim();
+    if (menuName) {
+      setExpandedLink(menuName);
+    }
+  }, [pathname, sideBarData]);
 
   const endDate = getCookieData("priobank-lite-fin_end_date");
 
