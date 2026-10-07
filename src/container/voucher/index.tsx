@@ -5,7 +5,8 @@ import { useVoucher } from "./Hooks";
 import VoucherComponent from "@/components/voucher";
 
 const VoucherContainer = () => {
-  const { methods, onSubmit, resetForm, ledgerList, loading } = useVoucher();
+  const { methods, onSubmit, resetForm, ledgerList, bankList, loading } =
+    useVoucher();
 
   return (
     <VoucherComponent
@@ -13,6 +14,7 @@ const VoucherContainer = () => {
       onSubmit={onSubmit}
       resetForm={resetForm}
       ledgerList={ledgerList}
+      bankList={bankList}
       loading={loading}
     />
   );

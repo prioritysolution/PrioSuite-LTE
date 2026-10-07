@@ -12,6 +12,8 @@ import { setVoucher } from "./VoucherReducer";
 import { getLedgerListAPI, postVoucherAPI } from "./VoucherApi";
 import { toast } from "sonner";
 
+const bankList = [{ label: "Main Bank Account", value: 1 }];
+
 export const useVoucher = () => {
   const dispatch = useDispatch<AppDispatch>();
 
@@ -40,6 +42,11 @@ export const useVoucher = () => {
         return !isNaN(num) && num > 0;
       }),
     mode: yup.mixed().required("Mode is Required"),
+    bankId: yup.mixed().when("mode", {
+      is: (val: string | number) => Number(val) === 2,
+      then: (s) => s.required("Bank Account is required"),
+      otherwise: (s) => s.optional().nullable(),
+    }),
   });
 
   const methods = useForm<VoucherForm>({
@@ -52,9 +59,18 @@ export const useVoucher = () => {
       ledger: "",
       amount: "",
       mode: "",
+      bankId: "",
     },
     resolver: yupResolver(schema) as any,
   });
+
+  const watchedMode = methods.watch("mode");
+
+  useEffect(() => {
+    if (Number(watchedMode) !== 2) {
+      methods.setValue("bankId", "");
+    }
+  }, [watchedMode, methods]);
 
   const resetForm = () => {
     methods.reset({
@@ -65,6 +81,7 @@ export const useVoucher = () => {
       ledger: "",
       amount: "",
       mode: "",
+      bankId: "",
     });
   };
 
@@ -88,8 +105,6 @@ export const useVoucher = () => {
   );
 
   const onSubmit = async (data: VoucherForm) => {
-    console.log("DATA", data);
-
     try {
       setLoading(true);
       const formattedDate =
@@ -97,17 +112,19 @@ export const useVoucher = () => {
           ? format(data.voucherDate, "yyyy-MM-dd")
           : data.voucherDate || "";
 
+      const transMode = Number(data.mode);
       const payload = {
         vouch_date: formattedDate,
         vouch_type: Number(data.voucherType),
         particular: data.particulars,
         branch_id: Number(branchId),
-        trans_mode: Number(data.mode),
+        trans_mode: transMode,
         ledger_id: Number(data.ledger),
         amount: Number(data.amount),
         org_id: Number(orgId),
         ref_vouch: data.refVouchNo || "",
-        bank_id: null,
+        bank_id:
+          transMode === 2 && data.bankId ? Number(data.bankId) : null,
       };
 
       const res = await postVoucherAPI(payload);
@@ -141,6 +158,7 @@ export const useVoucher = () => {
     resetForm,
     onSubmit,
     ledgerList,
+    bankList,
     loading,
     isLedgerLoading,
   };

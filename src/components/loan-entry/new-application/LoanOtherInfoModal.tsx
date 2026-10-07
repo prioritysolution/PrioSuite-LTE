@@ -9,7 +9,11 @@ import {
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useQuery } from "@tanstack/react-query";
-import { getLoanOtherInfoAPI } from "@/container/loan-entry/new-application/NewApplicationApi";
+import {
+  extractLoanOtherInfoRow,
+  getLoanOtherInfoAPI,
+  mapLoanOtherInfoFields,
+} from "@/container/loan-entry/new-application/NewApplicationApi";
 import { useGlobalContext } from "@/context/GlobalContext";
 import { Loader2, Calculator, Calendar } from "lucide-react";
 import { useEffect, useMemo } from "react";
@@ -74,51 +78,14 @@ export const LoanOtherInfoModal = ({
   });
 
   useEffect(() => {
-    let resData = null;
-    if (infoData) {
-      if (infoData.Data && infoData.Data[0]) {
-        resData = infoData.Data[0];
-      } else if (infoData.data && infoData.data.Data && infoData.data.Data[0]) {
-        resData = infoData.data.Data[0];
-      } else if (
-        infoData.data &&
-        infoData.data.data &&
-        infoData.data.data.data &&
-        infoData.data.data.data[0]
-      ) {
-        resData = infoData.data.data.data[0];
-      } else if (infoData.data && infoData.data.data && infoData.data.data[0]) {
-        resData = infoData.data.data[0];
-      } else if (infoData.data && infoData.data[0]) {
-        resData = infoData.data[0];
-      }
-    }
-
+    const resData = extractLoanOtherInfoRow(infoData);
     if (resData && memberIndex !== null) {
-      setValue(
-        `members.${memberIndex}.ln_cycle`,
-        resData.Loan_Cycle ?? resData.ln_cycle ?? 1,
-      );
-      setValue(
-        `members.${memberIndex}.inst_no`,
-        resData.Inst_No ?? resData.inst_no ?? resData.No_Of_Inst ?? 0,
-      );
-      setValue(
-        `members.${memberIndex}.inst_amt`,
-        resData.Inst_Amt ?? resData.inst_amt ?? 0,
-      );
-      setValue(
-        `members.${memberIndex}.resil_amt`,
-        resData.Tot_Repay_Amt ??
-          resData.Tot_repay_amt ??
-          resData.Resil_Amt ??
-          resData.resil_amt ??
-          0,
-      );
-      setValue(
-        `members.${memberIndex}.final_date`,
-        resData.Final_Date ?? resData.final_date ?? "",
-      );
+      const mapped = mapLoanOtherInfoFields(resData);
+      setValue(`members.${memberIndex}.ln_cycle`, mapped.ln_cycle);
+      setValue(`members.${memberIndex}.inst_no`, mapped.inst_no);
+      setValue(`members.${memberIndex}.inst_amt`, mapped.inst_amt);
+      setValue(`members.${memberIndex}.resil_amt`, mapped.resil_amt);
+      setValue(`members.${memberIndex}.final_date`, mapped.final_date);
     }
   }, [infoData, memberIndex, setValue]);
 

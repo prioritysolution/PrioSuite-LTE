@@ -242,4 +242,9 @@ export const endPoints = {
     toDate: string,
   ) =>
     `${createApi}/Org/ManageProfile/GetLoanCollectionReport?org_id=${orgId}&group_id=0&member_id=0&from_date=${fromDate}&to_date=${toDate}&branch_id=${branchId}&loan_cycle=0`,
+
+  // Support Tickets
+  getSupportTickets: (orgId: number, branchId: number) =>
+    `${createApi}/Org/Support/GetSupportTickets?org_id=${orgId}&branch_id=${branchId}`,
+  addSupportTicket: `${createApi}/Org/Support/AddSupportTicket`,
 };

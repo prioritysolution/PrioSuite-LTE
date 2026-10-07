@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { useWatch } from "react-hook-form";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { ClipboardList, Save, RotateCcw } from "lucide-react";
 import { Form } from "@/components/ui/form";
@@ -17,11 +18,15 @@ const VoucherComponent = ({
   onSubmit,
   resetForm,
   ledgerList = [],
+  bankList = [],
   loading,
 }: VoucherProps) => {
   const {
     formState: { isValid },
   } = form;
+
+  const mode = useWatch({ control: form.control, name: "mode" });
+  const isBankMode = Number(mode) === 2;
 
   const voucherTypeOptions = [
     { value: "1", label: "Receipt" },
@@ -127,7 +132,7 @@ const VoucherComponent = ({
                       />
                     </div>
 
-                    {/* Section 4: Mode */}
+                    {/* Section 4: Mode & Bank */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-t border-slate-100 pt-4">
                       <RadioField
                         control={form.control}
@@ -137,6 +142,19 @@ const VoucherComponent = ({
                         orientation="horizontal"
                         isRequired
                       />
+
+                      {isBankMode && (
+                        <DropdownField
+                          control={form.control}
+                          name="bankId"
+                          label="Select Bank Account"
+                          options={bankList}
+                          optionLabelKey="label"
+                          optionValueKey="value"
+                          searchPlaceholder="Select bank account..."
+                          isRequired
+                        />
+                      )}
                     </div>
 
                     {/* Submit Actions */}

@@ -13,6 +13,8 @@ import DropdownField from "@/common/formFields/DropdownField";
 import TextareaField from "@/common/formFields/TextareaField";
 import { extractList } from "@/container/manage-profile/member-profile/memberProfileHelpers";
 
+const MEMBER_OPTION_GROUPS = [4, 5, 6, 7] as const;
+
 interface Props {
   editMode: boolean;
 }
@@ -24,30 +26,18 @@ export const BasicDetails = (_props: Props) => {
   const watchedGroupId = useWatch({ control, name: "grp_id" });
   const selectedBranchId = useWatch({ control, name: "branch_id" });
 
-  const { data: genderOpt } = useQuery({
-    queryKey: ["opt", 4],
-    queryFn: () => masterService.getApplicationOption(4),
+  const { data: memberOptions } = useQuery({
+    queryKey: ["opt", "member-profile", ...MEMBER_OPTION_GROUPS],
+    queryFn: () =>
+      masterService.getApplicationOptions([...MEMBER_OPTION_GROUPS]),
     staleTime: 30 * 60 * 1000,
     refetchOnWindowFocus: false,
   });
-  const { data: religionOpt } = useQuery({
-    queryKey: ["opt", 5],
-    queryFn: () => masterService.getApplicationOption(5),
-    staleTime: 30 * 60 * 1000,
-    refetchOnWindowFocus: false,
-  });
-  const { data: casteOpt } = useQuery({
-    queryKey: ["opt", 6],
-    queryFn: () => masterService.getApplicationOption(6),
-    staleTime: 30 * 60 * 1000,
-    refetchOnWindowFocus: false,
-  });
-  const { data: maritalOpt } = useQuery({
-    queryKey: ["opt", 7],
-    queryFn: () => masterService.getApplicationOption(7),
-    staleTime: 30 * 60 * 1000,
-    refetchOnWindowFocus: false,
-  });
+
+  const genderOpt = memberOptions?.[4];
+  const religionOpt = memberOptions?.[5];
+  const casteOpt = memberOptions?.[6];
+  const maritalOpt = memberOptions?.[7];
 
   const { data: branchData, isLoading: branchLoading } = useQuery({
     queryKey: ["branchList", user?.org_id],

@@ -8,6 +8,7 @@ export interface VoucherForm {
   ledger: string | number;
   amount: string | number;
   mode: string | number;
+  bankId?: string | number;
 }
 
 export interface VoucherProps {
@@ -16,4 +17,5 @@ export interface VoucherProps {
   resetForm: () => void;
   ledgerList: any[];
   loading: boolean;
+  bankList?: { label: string; value: number }[];
 }

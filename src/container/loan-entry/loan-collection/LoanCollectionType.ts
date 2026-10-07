@@ -21,6 +21,13 @@ export interface LoanCollectionForm {
   bankRef: string;
 }
 
+/** Identifies one loan application row for the same member. */
+export interface LoanRowMeta {
+  accountId?: string | number | null;
+  loanDate?: string | null;
+  loanAmount?: string | number | null;
+}
+
 export interface LoanCollectionProps {
   form: UseFormReturn<LoanCollectionForm>;
   onSubmit: (values: LoanCollectionForm) => void;
@@ -32,7 +39,14 @@ export interface LoanCollectionProps {
   isLoanInfoLoading: boolean;
   isSplitLoading?: boolean;
   loading: boolean;
-  onToggleCollection: (memberId: string | number, checked: boolean) => void;
+  onToggleCollection: (
+    memberId: string | number,
+    checked: boolean,
+    meta?: LoanRowMeta,
+  ) => void;
+  selectedAccountId?: string | number | null;
+  selectedLoanDate?: string | null;
+  selectedLoanAmount?: string | number | null;
   showSuccessMessage?: boolean;
   successMessage?: string;
   onSuccessClose?: (open: boolean) => void;

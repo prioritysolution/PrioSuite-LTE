@@ -55,6 +55,9 @@ const LoanCollectionComponent = ({
   isSplitLoading,
   loading,
   onToggleCollection,
+  selectedAccountId = null,
+  selectedLoanDate = null,
+  selectedLoanAmount = null,
   showSuccessMessage = false,
   successMessage = "",
   onSuccessClose,
@@ -179,6 +182,9 @@ const LoanCollectionComponent = ({
           <MemberDetailsSection
             members={memberList}
             selectedMemberId={selectedMemberId}
+            selectedAccountId={selectedAccountId}
+            selectedLoanDate={selectedLoanDate}
+            selectedLoanAmount={selectedLoanAmount}
             isLoading={isMemberLoading}
             hasGroup={!!selectedGroup}
             onToggleCollection={onToggleCollection}

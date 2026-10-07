@@ -20,6 +20,9 @@ const LoanCollectionContainer = () => {
     showSuccessMessage,
     successMessage,
     handleSuccessClose,
+    activeAccountId,
+    selectedLoanDate,
+    selectedLoanAmount,
   } = useLoanCollection();
 
   return (
@@ -35,6 +38,9 @@ const LoanCollectionContainer = () => {
       isSplitLoading={isSplitLoading}
       loading={loading}
       onToggleCollection={onToggleCollection}
+      selectedAccountId={activeAccountId}
+      selectedLoanDate={selectedLoanDate}
+      selectedLoanAmount={selectedLoanAmount}
       showSuccessMessage={showSuccessMessage}
       successMessage={successMessage}
       onSuccessClose={handleSuccessClose}

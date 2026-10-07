@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useForm } from "react-hook-form";
@@ -9,7 +9,7 @@ import { format } from "date-fns";
 import { toast } from "sonner";
 import getCookieData from "@/lib/getCookieData";
 import { AppDispatch, RootState } from "@/redux/store";
-import { LoanCollectionForm } from "./LoanCollectionType";
+import { LoanCollectionForm, LoanRowMeta } from "./LoanCollectionType";
 import {
   setGroupList,
   setMemberList,
@@ -18,9 +18,7 @@ import {
 import {
   getGroupListAPI,
   getAllMemberListAPI,
-  getGroupMemberAPI,
   getLoanCycleListAPI,
-  getLoanCollectionReportAPI,
   getSchemeListAPI,
   postCollectionAPI,
 } from "./LoanCollectionApi";
@@ -60,6 +58,44 @@ const pickAmount = (...values: unknown[]) => {
   return "";
 };
 
+/** Prefer a positive amount; keep 0 only when every candidate is empty/zero. */
+const pickPositiveAmount = (...values: unknown[]) => {
+  let zeroFallback: string | number | "" = "";
+  for (const value of values) {
+    if (value === null || value === undefined || value === "") continue;
+    if (typeof value === "string" && value.trim() === "") continue;
+    const num = Number(value);
+    if (Number.isNaN(num)) {
+      if (typeof value === "string") return value;
+      continue;
+    }
+    if (num !== 0) return value as string | number;
+    if (zeroFallback === "") zeroFallback = value as string | number;
+  }
+  return zeroFallback;
+};
+
+/** Prefer API value when present and meaningful; otherwise keep list-row value. */
+const preferFilled = (preferred: unknown, fallback: unknown) => {
+  if (preferred === null || preferred === undefined || preferred === "") {
+    return fallback;
+  }
+  if (typeof preferred === "string" && preferred.trim() === "") {
+    return fallback;
+  }
+  const prefNum = Number(preferred);
+  const fallNum = Number(fallback);
+  if (
+    !Number.isNaN(prefNum) &&
+    prefNum === 0 &&
+    !Number.isNaN(fallNum) &&
+    fallNum > 0
+  ) {
+    return fallback;
+  }
+  return preferred;
+};
+
 const formatMoney2 = (value: unknown) => {
   const num = Number(value);
   if (Number.isNaN(num)) return value as any;
@@ -77,7 +113,9 @@ const formatRoundMoney = (value: unknown) => {
 /** Outstanding / current balance — never confuse with Demand. */
 const pickCurrentBalance = (source: Record<string, any> | null | undefined) => {
   if (!source) return "";
-  return pickAmount(
+  // Prefer positive outstanding; GetLoanCycleList often returns Outs_Amount=0
+  // while Realisable_Amt / list row still holds the true balance.
+  return pickPositiveAmount(
     source.Outs_Amount,
     source.Outstanding_Balance,
     source.outstanding_balance,
@@ -90,15 +128,14 @@ const pickCurrentBalance = (source: Record<string, any> | null | undefined) => {
     // Opening outstanding when no collection rows exist yet
     source.Realisable_Amt,
     source.Resilable_Amt,
-    source.Loan_Amount,
-    source.Sanc_Amount,
   );
 };
 
 /** Period demand / amount due — never use Realisable_Amt. */
 const pickDemand = (source: Record<string, any> | null | undefined) => {
   if (!source) return "";
-  return pickAmount(
+  // Skip Demand=0 from cycle API when installment is the real period demand.
+  return pickPositiveAmount(
     source.Demand,
     source.Demand_Amt,
     source.Demand_Amount,
@@ -108,6 +145,7 @@ const pickDemand = (source: Record<string, any> | null | undefined) => {
     source.Inst_Demand,
     source.Installment_Amt,
     source.Inst_Amount,
+    source.Inst_Amt,
   );
 };
 
@@ -169,17 +207,98 @@ const pickSchemeRates = (scheme: Record<string, any> | null | undefined) => {
     scheme.prn_1000,
     scheme.Prn1000,
     scheme.PRN_1000,
+    scheme.Principal_1000,
+    scheme.Prin_1000,
+    scheme.Prn_Per_1000,
+    scheme.prn_amt_1000,
   );
   const inttRaw = pickAmount(
     scheme.Intt_1000,
     scheme.intt_1000,
     scheme.Intt1000,
     scheme.INTT_1000,
+    scheme.Interest_1000,
+    scheme.Int_1000,
+    scheme.Intt_Per_1000,
+    scheme.intt_amt_1000,
   );
   if (prnRaw === "" && inttRaw === "") return null;
   return {
     prn1000: prnRaw === "" ? 0 : Number(prnRaw),
     intt1000: inttRaw === "" ? 0 : Number(inttRaw),
+  };
+};
+
+/** Resolve scheme + Prn_1000/Intt_1000 from member row and scheme master list. */
+const resolveSchemeRates = (
+  schemes: any[],
+  member: Record<string, any> | null | undefined,
+  preferredSchemeId?: number | null,
+) => {
+  // 1) Rates already present on the selected loan/member row
+  const fromMember = pickSchemeRates(member);
+  if (fromMember) {
+    return { rates: fromMember, scheme: member || null };
+  }
+
+  const schemeId =
+    preferredSchemeId ||
+    pickSchemeId(member) ||
+    (schemes.length === 1
+      ? Number(
+          schemes[0]?.Scheme_Id ??
+            schemes[0]?.Schem_Id ??
+            schemes[0]?.scheme_id,
+        )
+      : null);
+
+  let scheme: any = null;
+  if (schemeId) {
+    scheme = schemes.find(
+      (s: any) =>
+        Number(s.Scheme_Id ?? s.Schem_Id ?? s.scheme_id) === Number(schemeId),
+    );
+  }
+
+  // 2) Match by scheme name
+  if (!scheme && member) {
+    const schemeName = String(
+      member.Scheme_Name || member.scheme_name || "",
+    ).trim();
+    if (schemeName) {
+      scheme = schemes.find(
+        (s: any) =>
+          String(s.Scheme_Name || s.scheme_name || "")
+            .trim()
+            .toLowerCase() === schemeName.toLowerCase(),
+      );
+    }
+  }
+
+  // 3) Match by ROI when available
+  if (!scheme && member) {
+    const roi = Number(member.RoI ?? member.ROI ?? member.roi);
+    if (!Number.isNaN(roi) && roi > 0) {
+      scheme = schemes.find(
+        (s: any) => Number(s.RoI ?? s.ROI ?? s.roi) === roi,
+      );
+    }
+  }
+
+  let rates = pickSchemeRates(scheme);
+  if (rates) return { rates, scheme };
+
+  // 4) First scheme in master that has Prn/Intt rates
+  for (const s of schemes) {
+    const candidate = pickSchemeRates(s);
+    if (candidate) return { rates: candidate, scheme: s };
+  }
+
+  // 5) Last resort — allow save (full amount as principal)
+  return {
+    rates: { prn1000: 1000, intt1000: 0 },
+    scheme: scheme || schemes[0] || null,
+    fallback: true as const,
   };
 };
 
@@ -289,6 +408,17 @@ export const useLoanCollection = () => {
   const [activeLoanCycle, setActiveLoanCycle] = useState<string>("");
   const [activeAccountId, setActiveAccountId] = useState<number | null>(null);
   const [activeSchemeId, setActiveSchemeId] = useState<number | null>(null);
+  const [selectedLoanDate, setSelectedLoanDate] = useState<string>("");
+  const [selectedLoanAmount, setSelectedLoanAmount] = useState<
+    string | number | ""
+  >("");
+  const selectedMemberRef = useRef<any>(null);
+  const selectionTokenRef = useRef(0);
+  const schemeListRef = useRef<any[] | null>(null);
+  const schemeListPromiseRef = useRef<Promise<any[]> | null>(null);
+  const schemeRatesRef = useRef<{ prn1000: number; intt1000: number } | null>(
+    null,
+  );
 
   const schema = yup.object().shape({
     collectionDate: yup.mixed().required("Collection Date is Required"),
@@ -376,7 +506,12 @@ export const useLoanCollection = () => {
     setActiveLoanCycle("");
     setActiveAccountId(null);
     setActiveSchemeId(null);
+    setSelectedLoanDate("");
+    setSelectedLoanAmount("");
+    selectedMemberRef.current = null;
+    schemeRatesRef.current = null;
     setIsSplitLoading(false);
+    setIsLoanInfoLoading(false);
   }, [methods]);
 
   const resetForm = useCallback(() => {
@@ -396,7 +531,12 @@ export const useLoanCollection = () => {
     setActiveLoanCycle("");
     setActiveAccountId(null);
     setActiveSchemeId(null);
+    setSelectedLoanDate("");
+    setSelectedLoanAmount("");
+    selectedMemberRef.current = null;
+    schemeRatesRef.current = null;
     setIsSplitLoading(false);
+    setIsLoanInfoLoading(false);
   }, [methods, dispatch]);
 
   const extractList = (res: any): any[] => {
@@ -429,206 +569,17 @@ export const useLoanCollection = () => {
     [dispatch],
   );
 
-  const enrichMemberLoanDetails = useCallback(
-    async (
-      org_Id: number,
-      branch_Id: number,
-      group_Id: string,
-      member: any,
-    ) => {
-      const memberId = String(
-        member?.Member_Id ?? member?.Mem_Id ?? member?.mem_id ?? "",
-      );
-      if (!memberId) return member;
-
-      try {
-        const cycleRes = await getLoanCycleListAPI(
-          org_Id,
-          branch_Id,
-          group_Id,
-          memberId,
-        );
-        const cycles =
-          cycleRes?.Data ||
-          cycleRes?.data?.Data ||
-          extractList(cycleRes);
-        if (!Array.isArray(cycles) || cycles.length === 0) return member;
-
-        const latest = [...cycles].sort(
-          (a, b) => Number(b.Loan_Cycle || 0) - Number(a.Loan_Cycle || 0),
-        )[0];
-        const loanCycle = String(latest?.Loan_Cycle ?? "");
-
-        let loanInfo: any = null;
-        let lastCollection: any = null;
-
-        if (loanCycle) {
-          const reportRes = await getLoanCollectionReportAPI(
-            org_Id,
-            group_Id,
-            memberId,
-            "",
-            "",
-            String(branch_Id),
-            loanCycle,
-          );
-          const data = reportRes?.Data || reportRes?.data?.Data;
-          if (data) {
-            loanInfo = data.loan_info?.[0] || data.Loan_Info?.[0] || null;
-            const report =
-              data.collection_report || data.Collection_Report || [];
-            if (Array.isArray(report) && report.length > 0) {
-              lastCollection = report[report.length - 1];
-            }
-          }
-        }
-
-        return {
-          ...member,
-          Loan_Date:
-            loanInfo?.Loan_Date ||
-            latest?.Loan_Date ||
-            member.Loan_Date ||
-            member.loan_date ||
-            "",
-          Sanc_Amount:
-            loanInfo?.Loan_Amount ||
-            loanInfo?.Sanc_Amount ||
-            latest?.Loan_Amount ||
-            latest?.Sanc_Amount ||
-            member.Sanc_Amount ||
-            member.Loan_Amount ||
-            "",
-          Loan_Amount:
-            loanInfo?.Loan_Amount ||
-            loanInfo?.Sanc_Amount ||
-            latest?.Loan_Amount ||
-            member.Loan_Amount ||
-            member.Sanc_Amount ||
-            "",
-          Installment_Amt:
-            loanInfo?.Installment_Amt ||
-            latest?.Installment_Amt ||
-            member.Installment_Amt ||
-            member.Inst_Amount ||
-            "",
-          Realisable_Amt:
-            loanInfo?.Realisable_Amt ||
-            member.Realisable_Amt ||
-            member.Resilable_Amt ||
-            "",
-          Outs_Amount:
-            lastCollection?.Outs_Amount ||
-            lastCollection?.Balance ||
-            loanInfo?.Outs_Amount ||
-            loanInfo?.Outstanding_Balance ||
-            loanInfo?.Realisable_Amt ||
-            member.Outs_Amount ||
-            member.Curr_Balance ||
-            member.Realisable_Amt ||
-            "",
-          Account_Id:
-            latest?.Account_Id ||
-            loanInfo?.Account_Id ||
-            member.Account_Id ||
-            null,
-          Scheme_Id:
-            latest?.Scheme_Id ||
-            latest?.Schem_Id ||
-            loanInfo?.Scheme_Id ||
-            loanInfo?.Schem_Id ||
-            member.Scheme_Id ||
-            member.Schem_Id ||
-            null,
-          Loan_Cycle: loanCycle || member.Loan_Cycle || "",
-        };
-      } catch {
-        return member;
-      }
-    },
-    [],
-  );
-
   const getMemberListAPICall = useCallback(
-    async (org_Id: number, group_Id: string, branch_Id?: number) => {
+    async (org_Id: number, group_Id: string, _branch_Id?: number) => {
       try {
         setIsMemberLoading(true);
 
-        const [allMembersRes, groupMembersRes] = await Promise.all([
-          getAllMemberListAPI(org_Id, group_Id).catch(() => null),
-          getGroupMemberAPI(org_Id, group_Id).catch(() => null),
-        ]);
-
+        // Single group-level call — GetAllMemberList already returns
+        // member + active loan application fields (no per-member fan-out).
+        const allMembersRes = await getAllMemberListAPI(org_Id, group_Id);
         const allMembers = extractList(allMembersRes);
-        const groupMembers = extractList(groupMembersRes);
 
-        // Prefer GetAllMemberList (loan fields); merge Member_No / name from GetGroupMember
-        const groupMap = new Map<string, any>();
-        groupMembers.forEach((gm: any) => {
-          const id = String(gm.Member_Id ?? gm.Mem_Id ?? gm.mem_id ?? "");
-          if (id) groupMap.set(id, gm);
-        });
-
-        let baseList =
-          allMembers.length > 0
-            ? allMembers
-            : groupMembers.length > 0
-              ? groupMembers
-              : [];
-
-        // If GetAllMemberList returned rows without ids matching group members, merge both
-        if (allMembers.length > 0 && groupMembers.length > 0) {
-          baseList = allMembers.map((m: any) => {
-            const id = String(m.Member_Id ?? m.Mem_Id ?? m.mem_id ?? "");
-            const gm = groupMap.get(id);
-            if (!gm) return m;
-            return {
-              ...gm,
-              ...m,
-              Member_Id: m.Member_Id ?? gm.Member_Id ?? gm.Mem_Id,
-              Member_No:
-                m.Member_No ||
-                m.Mem_No ||
-                m.mem_no ||
-                m.Member_Code ||
-                m.Mem_Code ||
-                gm.Member_No ||
-                gm.Mem_No ||
-                "",
-              Member_Name:
-                m.Member_Name ||
-                m.Mem_Name ||
-                gm.Member_Name ||
-                gm.Mem_Name ||
-                "",
-              FatHusb_Name:
-                m.FatHusb_Name ||
-                gm.FatHusb_Name ||
-                gm.Guardian_Name ||
-                "",
-              Area_Name: m.Area_Name || gm.Area_Name || gm.Area || "",
-            };
-          });
-
-          // Include any group members missing from all-members list
-          groupMembers.forEach((gm: any) => {
-            const id = String(gm.Member_Id ?? gm.Mem_Id ?? gm.mem_id ?? "");
-            if (
-              id &&
-              !baseList.some(
-                (m: any) =>
-                  String(m.Member_Id ?? m.Mem_Id ?? m.mem_id ?? "") === id,
-              )
-            ) {
-              baseList.push(gm);
-            }
-          });
-        } else if (groupMembers.length > 0 && allMembers.length === 0) {
-          baseList = groupMembers;
-        }
-
-        // Normalize member no / name on every row
-        baseList = baseList.map((m: any) => ({
+        const baseList = allMembers.map((m: any) => ({
           ...m,
           Member_Id: m.Member_Id ?? m.Mem_Id ?? m.mem_id,
           Member_No:
@@ -640,24 +591,53 @@ export const useLoanCollection = () => {
             m.Acc_No ||
             "",
           Member_Name: m.Member_Name || m.Mem_Name || m.mem_name || "",
+          FatHusb_Name:
+            m.FatHusb_Name || m.Guardian_Name || m.Gurdain_Name || "",
+          Area_Name: m.Area_Name || m.Area || m.Vill_Name || "",
+          Loan_Date: m.Loan_Date || m.loan_date || m.Disb_Date || "",
+          Loan_Amount:
+            m.Loan_Amount || m.Sanc_Amount || m.Disb_Amount || "",
+          Sanc_Amount:
+            m.Sanc_Amount || m.Loan_Amount || m.Disb_Amount || "",
+          Installment_Amt:
+            m.Installment_Amt || m.Inst_Amount || m.Inst_Amt || "",
+          Outs_Amount:
+            m.Outs_Amount ||
+            m.Outstanding_Balance ||
+            m.Curr_Balance ||
+            m.Current_Balance ||
+            m.Curr_Bal ||
+            m.Realisable_Amt ||
+            m.Resilable_Amt ||
+            m.Balance ||
+            "",
+          Realisable_Amt:
+            m.Realisable_Amt || m.Resilable_Amt || m.Outs_Amount || "",
+          Account_Id:
+            m.Account_Id ??
+            m.Acc_Id ??
+            m.account_id ??
+            m.Loan_Acc_Id ??
+            m.Accnt_Id ??
+            null,
+          Scheme_Id:
+            m.Scheme_Id ?? m.Schem_Id ?? m.scheme_id ?? m.SchemeId ?? null,
+          Scheme_Name: m.Scheme_Name || m.scheme_name || "",
+          RoI: m.RoI ?? m.ROI ?? m.roi ?? "",
+          Loan_Cycle: m.Loan_Cycle ?? m.Ln_Cycle ?? m.loan_cycle ?? "",
+          Prn_1000: m.Prn_1000 ?? m.prn_1000 ?? null,
+          Intt_1000: m.Intt_1000 ?? m.intt_1000 ?? null,
+          Demand:
+            m.Demand ??
+            m.Demand_Amt ??
+            m.Demand_Amount ??
+            m.Installment_Amt ??
+            m.Inst_Amount ??
+            m.Inst_Amt ??
+            "",
         }));
 
-        const branch = Number(branch_Id || branchId || 0);
-        const enriched =
-          branch > 0
-            ? await Promise.all(
-                baseList.map((member: any) =>
-                  enrichMemberLoanDetails(
-                    org_Id,
-                    branch,
-                    group_Id,
-                    member,
-                  ),
-                ),
-              )
-            : baseList;
-
-        dispatch(setMemberList(enriched));
+        dispatch(setMemberList(baseList));
       } catch {
         dispatch(setMemberList([]));
         toast.error("Failed to load members");
@@ -665,7 +645,7 @@ export const useLoanCollection = () => {
         setIsMemberLoading(false);
       }
     },
-    [dispatch, branchId, enrichMemberLoanDetails],
+    [dispatch],
   );
 
   const applyMemberLoanInfo = useCallback(
@@ -675,131 +655,398 @@ export const useLoanCollection = () => {
         return;
       }
 
+      selectedMemberRef.current = member;
+
       applyLoanInfoFields(
         (name, value) => methods.setValue(name, value),
         [member],
       );
+
+      const accountId =
+        member.Account_Id ??
+        member.Acc_Id ??
+        member.account_id ??
+        member.Loan_Acc_Id;
       setActiveAccountId(
-        member.Account_Id ? Number(member.Account_Id) : null,
+        accountId !== null && accountId !== undefined && accountId !== ""
+          ? Number(accountId)
+          : null,
       );
+
+      const cycle = member.Loan_Cycle ?? member.Ln_Cycle ?? member.loan_cycle;
+      setActiveLoanCycle(
+        cycle !== null && cycle !== undefined && cycle !== ""
+          ? String(cycle)
+          : "",
+      );
+
+      const loanDate = member.Loan_Date || member.loan_date || "";
+      setSelectedLoanDate(loanDate ? String(loanDate) : "");
+      setSelectedLoanAmount(
+        member.Loan_Amount ?? member.Sanc_Amount ?? member.Disb_Amount ?? "",
+      );
+
       const schemeId = pickSchemeId(member);
       if (schemeId) setActiveSchemeId(schemeId);
+      else setActiveSchemeId(null);
+
+      // Default collection amount = Demand (or installment)
+      const demandVal = pickDemand(member);
+      if (demandVal !== "" && Number(demandVal) > 0) {
+        methods.setValue("amount", formatMoney2(demandVal), {
+          shouldValidate: true,
+        });
+      }
+
+      // Apply scheme split immediately when rates are already on the row
+      const fromMember = pickSchemeRates(member);
+      if (fromMember && demandVal !== "" && Number(demandVal) > 0) {
+        schemeRatesRef.current = fromMember;
+        const split = splitBySchemePer1000(
+          demandVal,
+          fromMember.prn1000,
+          fromMember.intt1000,
+        );
+        methods.setValue("principalAmount", split.principal, {
+          shouldValidate: true,
+        });
+        methods.setValue("interestAmount", split.interest, {
+          shouldValidate: true,
+        });
+      }
     },
     [clearLoanInfo, methods],
   );
 
-  const loadLoanInfoAPICall = useCallback(
+  const ensureSchemeRates = useCallback(
+    async (
+      member: Record<string, any> | null | undefined,
+      preferredSchemeId?: number | null,
+    ) => {
+      const fromMember = pickSchemeRates(member);
+      if (fromMember) {
+        schemeRatesRef.current = fromMember;
+        return fromMember;
+      }
+
+      if (!orgId) return null;
+
+      try {
+        if (!schemeListRef.current) {
+          if (!schemeListPromiseRef.current) {
+            schemeListPromiseRef.current = getSchemeListAPI(Number(orgId))
+              .then((res) => {
+                const list = extractList(res);
+                schemeListRef.current = list;
+                return list;
+              })
+              .catch((err) => {
+                schemeListPromiseRef.current = null;
+                throw err;
+              });
+          }
+          await schemeListPromiseRef.current;
+        }
+        const resolved = resolveSchemeRates(
+          schemeListRef.current || [],
+          member,
+          preferredSchemeId,
+        );
+        schemeRatesRef.current = resolved.rates;
+        if (resolved.scheme) {
+          const sid = pickSchemeId(resolved.scheme);
+          if (sid) setActiveSchemeId(sid);
+        }
+        return resolved.rates;
+      } catch {
+        return null;
+      }
+    },
+    [orgId],
+  );
+
+  const applyPaymentSplit = useCallback(
+    async (
+      amountValue: unknown,
+      member: Record<string, any> | null | undefined,
+      preferredSchemeId?: number | null,
+    ) => {
+      const amountNum = Number(amountValue);
+      if (
+        amountValue === "" ||
+        amountValue == null ||
+        Number.isNaN(amountNum) ||
+        amountNum <= 0
+      ) {
+        methods.setValue("principalAmount", "");
+        methods.setValue("interestAmount", "");
+        return;
+      }
+
+      try {
+        setIsSplitLoading(true);
+        const rates =
+          schemeRatesRef.current ||
+          (await ensureSchemeRates(member, preferredSchemeId));
+        if (!rates) {
+          methods.setValue("principalAmount", "");
+          methods.setValue("interestAmount", "");
+          return;
+        }
+        const split = splitBySchemePer1000(
+          amountValue,
+          rates.prn1000,
+          rates.intt1000,
+        );
+        methods.setValue("principalAmount", split.principal, {
+          shouldValidate: true,
+        });
+        methods.setValue("interestAmount", split.interest, {
+          shouldValidate: true,
+        });
+      } finally {
+        setIsSplitLoading(false);
+      }
+    },
+    [ensureSchemeRates, methods],
+  );
+
+  const normalizeDateKey = (value: unknown) => {
+    if (!value) return "";
+    const raw = String(value);
+    if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+    try {
+      const d = new Date(raw);
+      if (!Number.isNaN(d.getTime())) return format(d, "yyyy-MM-dd");
+    } catch {
+      /* ignore */
+    }
+    return raw;
+  };
+
+  const findMemberRow = useCallback(
+    (memberId: string | number, meta?: LoanRowMeta) => {
+      const accountId = meta?.accountId;
+      const loanDateKey = normalizeDateKey(meta?.loanDate);
+      const loanAmt =
+        meta?.loanAmount !== undefined && meta?.loanAmount !== null
+          ? Number(meta.loanAmount)
+          : null;
+
+      const candidates = memberList.filter(
+        (m) => String(m.Member_Id ?? m.Mem_Id) === String(memberId),
+      );
+      if (candidates.length === 0) return undefined;
+      if (candidates.length === 1) return candidates[0];
+
+      if (
+        accountId !== null &&
+        accountId !== undefined &&
+        accountId !== ""
+      ) {
+        const byAccount = candidates.find((m) => {
+          const rowAccount =
+            m.Account_Id ?? m.Acc_Id ?? m.account_id ?? m.Loan_Acc_Id;
+          return String(rowAccount) === String(accountId);
+        });
+        if (byAccount) return byAccount;
+      }
+
+      if (loanDateKey || (loanAmt !== null && !Number.isNaN(loanAmt))) {
+        const byLoan = candidates.find((m) => {
+          const sameDate =
+            !loanDateKey ||
+            normalizeDateKey(m.Loan_Date || m.loan_date) === loanDateKey;
+          const sameAmt =
+            loanAmt === null ||
+            Number.isNaN(loanAmt) ||
+            Number(m.Loan_Amount ?? m.Sanc_Amount) === loanAmt;
+          return sameDate && sameAmt;
+        });
+        if (byLoan) return byLoan;
+      }
+
+      return candidates[0];
+    },
+    [memberList],
+  );
+
+  const isSameLoanSelection = useCallback(
+    (memberId: string | number, meta?: LoanRowMeta) => {
+      const currentId = methods.getValues("memberId");
+      if (String(currentId) !== String(memberId)) return false;
+
+      const accountId = meta?.accountId;
+      if (
+        accountId !== null &&
+        accountId !== undefined &&
+        accountId !== "" &&
+        activeAccountId != null
+      ) {
+        return String(activeAccountId) === String(accountId);
+      }
+
+      const dateKey = normalizeDateKey(meta?.loanDate);
+      const amt =
+        meta?.loanAmount !== undefined && meta?.loanAmount !== null
+          ? Number(meta.loanAmount)
+          : null;
+
+      const sameDate =
+        !dateKey ||
+        !selectedLoanDate ||
+        normalizeDateKey(selectedLoanDate) === dateKey;
+      const sameAmt =
+        amt === null ||
+        Number.isNaN(amt) ||
+        selectedLoanAmount === "" ||
+        Number(selectedLoanAmount) === amt;
+      return sameDate && sameAmt;
+    },
+    [methods, activeAccountId, selectedLoanDate, selectedLoanAmount],
+  );
+
+  /** One GetLoanCycleList call for the checked Collect row — merge without wiping list balances. */
+  const loadSelectedLoanDetails = useCallback(
     async (
       org_Id: number,
       branch_Id: number,
       group_Id: string,
-      member_Id: string,
+      memberId: string | number,
       member: any,
     ) => {
       try {
-        setIsLoanInfoLoading(true);
-        applyMemberLoanInfo(member);
-
         const cycleRes = await getLoanCycleListAPI(
           org_Id,
           branch_Id,
           group_Id,
-          member_Id,
+          String(memberId),
         );
         const cycles =
           cycleRes?.Data ||
           cycleRes?.data?.Data ||
           extractList(cycleRes);
-        if (!Array.isArray(cycles) || cycles.length === 0) return;
+        if (!Array.isArray(cycles) || cycles.length === 0) return member;
 
-        const latest = [...cycles].sort(
-          (a, b) => Number(b.Loan_Cycle || 0) - Number(a.Loan_Cycle || 0),
-        )[0];
-        const loanCycle = String(latest?.Loan_Cycle ?? "");
-        setActiveLoanCycle(loanCycle);
+        const loanDateKey = normalizeDateKey(
+          member?.Loan_Date || member?.loan_date,
+        );
+        const loanAmt = Number(member?.Loan_Amount ?? member?.Sanc_Amount);
+        const accountId =
+          member?.Account_Id ??
+          member?.Acc_Id ??
+          member?.account_id ??
+          member?.Loan_Acc_Id;
 
-        if (latest?.Account_Id) {
-          setActiveAccountId(Number(latest.Account_Id));
+        let matched =
+          cycles.find((c: any) => {
+            const rowAccount =
+              c.Account_Id ?? c.Acc_Id ?? c.account_id ?? c.Loan_Acc_Id;
+            if (
+              accountId !== null &&
+              accountId !== undefined &&
+              accountId !== "" &&
+              rowAccount !== null &&
+              rowAccount !== undefined &&
+              rowAccount !== ""
+            ) {
+              return String(rowAccount) === String(accountId);
+            }
+            const sameDate =
+              !loanDateKey ||
+              normalizeDateKey(c.Loan_Date || c.loan_date) === loanDateKey;
+            const sameAmt =
+              Number.isNaN(loanAmt) ||
+              Number(c.Loan_Amount ?? c.Sanc_Amount) === loanAmt;
+            return sameDate && sameAmt;
+          }) || null;
+
+        if (!matched) {
+          matched = [...cycles].sort(
+            (a, b) => Number(b.Loan_Cycle || 0) - Number(a.Loan_Cycle || 0),
+          )[0];
         }
 
-        const schemeFromCycle = pickSchemeId(member, latest);
-        if (schemeFromCycle) setActiveSchemeId(schemeFromCycle);
-
-        // Cycle row often has loan date / amounts for the active account
-        applyLoanInfoFields(
-          (name, value) => methods.setValue(name, value),
-          [member, latest],
-        );
-
-        const reportRes = await getLoanCollectionReportAPI(
-          org_Id,
-          group_Id,
-          member_Id,
-          "",
-          "",
-          String(branch_Id),
-          loanCycle,
-        );
-
-        if (
-          (reportRes?.message === "Data Found" ||
-            reportRes?.data?.message === "Data Found") &&
-          (reportRes?.Data || reportRes?.data?.Data)
-        ) {
-          const data = reportRes.Data || reportRes.data.Data;
-          const info = data.loan_info?.[0] || data.Loan_Info?.[0] || null;
-          const report =
-            data.collection_report || data.Collection_Report || [];
-
-          // Prefer loan_info; if collections exist, outstanding comes from last Outs_Amount
-          const lastCollection =
-            Array.isArray(report) && report.length > 0
-              ? report[report.length - 1]
-              : null;
-
-          applyLoanInfoFields(
-            (name, value) => methods.setValue(name, value),
-            [member, latest, info, lastCollection],
-          );
-
-          const schemeId = pickSchemeId(info, lastCollection, latest, member);
-          if (schemeId) setActiveSchemeId(schemeId);
-
-          // Explicit outstanding from ledger when collections exist
-          if (lastCollection) {
-            const outs = pickAmount(
-              lastCollection.Outs_Amount,
-              lastCollection.Outstanding_Balance,
-              lastCollection.Balance,
-            );
-            if (outs !== "") {
-              methods.setValue("currentBalance", formatMoney2(outs));
-            }
-          } else if (info) {
-            const outs = pickCurrentBalance(info);
-            if (outs !== "") {
-              methods.setValue("currentBalance", formatMoney2(outs));
-            }
-          }
-
-          if (info) {
-            const demand = pickDemand(info);
-            if (demand !== "") {
-              methods.setValue("demand", formatMoney2(demand));
-            }
-          }
-        }
+        return {
+          ...member,
+          ...matched,
+          Account_Id: preferFilled(
+            matched?.Account_Id ?? matched?.Acc_Id,
+            member.Account_Id ?? member.Acc_Id ?? accountId,
+          ),
+          Loan_Cycle: preferFilled(
+            matched?.Loan_Cycle ?? matched?.Ln_Cycle,
+            member.Loan_Cycle ?? member.Ln_Cycle ?? "",
+          ),
+          Scheme_Id: preferFilled(
+            matched?.Scheme_Id ?? matched?.Schem_Id ?? matched?.scheme_id,
+            member.Scheme_Id ?? member.Schem_Id ?? null,
+          ),
+          Scheme_Name: preferFilled(
+            matched?.Scheme_Name ?? matched?.scheme_name,
+            member.Scheme_Name || "",
+          ),
+          RoI: preferFilled(
+            matched?.RoI ?? matched?.ROI,
+            member.RoI ?? member.ROI ?? "",
+          ),
+          Loan_Date: preferFilled(
+            matched?.Loan_Date ?? matched?.loan_date,
+            member.Loan_Date || member.loan_date || "",
+          ),
+          Loan_Amount: preferFilled(
+            matched?.Loan_Amount ?? matched?.Sanc_Amount,
+            member.Loan_Amount || member.Sanc_Amount || "",
+          ),
+          Installment_Amt: preferFilled(
+            matched?.Installment_Amt ?? matched?.Inst_Amount,
+            member.Installment_Amt || "",
+          ),
+          // Never let cycle Outs_Amount=0 wipe the list-row outstanding
+          Outs_Amount: preferFilled(
+            matched?.Outs_Amount ??
+              matched?.Outstanding_Balance ??
+              matched?.Curr_Balance,
+            member.Outs_Amount ||
+              member.Outstanding_Balance ||
+              member.Curr_Balance ||
+              member.Realisable_Amt ||
+              "",
+          ),
+          Realisable_Amt: preferFilled(
+            matched?.Realisable_Amt ?? matched?.Resilable_Amt,
+            member.Realisable_Amt || member.Resilable_Amt || "",
+          ),
+          Demand: preferFilled(
+            matched?.Demand ?? matched?.Demand_Amt ?? matched?.Coll_Demand,
+            member.Demand ||
+              member.Demand_Amt ||
+              member.Installment_Amt ||
+              "",
+          ),
+          Prn_1000: preferFilled(matched?.Prn_1000, member.Prn_1000),
+          Intt_1000: preferFilled(matched?.Intt_1000, member.Intt_1000),
+          Penal_Amount: preferFilled(
+            matched?.Penal_Amount ?? matched?.Penal_Amt,
+            member.Penal_Amount ?? member.Penal_Amt ?? 0,
+          ),
+        };
       } catch {
-        // Member-level fields already applied as fallback
-      } finally {
-        setIsLoanInfoLoading(false);
+        return member;
       }
     },
-    [applyMemberLoanInfo, methods],
+    [],
   );
 
   const onSubmit = async (data: LoanCollectionForm) => {
     try {
+      if (!activeAccountId) {
+        toast.error(
+          "Loan account not found for selected member. Please re-select Collect.",
+        );
+        return;
+      }
+
       setLoading(true);
       const formattedDate =
         data.collectionDate instanceof Date
@@ -813,7 +1060,7 @@ export const useLoanCollection = () => {
         group_id: Number(data.groupId),
         member_id: Number(data.memberId),
         account_id: activeAccountId,
-        loan_cycle: activeLoanCycle || null,
+        loan_cycle: activeLoanCycle ? Number(activeLoanCycle) : null,
         coll_date: formattedDate,
         amount: Number(data.amount),
         prn_amt: Number(data.principalAmount) || 0,
@@ -888,7 +1135,7 @@ export const useLoanCollection = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- clear bank fields on mode switch
   }, [watchedTransMode]);
 
-  // After user types Amount: fetch mst_scheme Prn_1000 / Intt_1000 and split
+  // After user types Amount: split using cached scheme rates (no repeat GetScheme)
   useEffect(() => {
     const amountNum = Number(watchedAmount);
     const hasAmount =
@@ -904,7 +1151,7 @@ export const useLoanCollection = () => {
       return;
     }
 
-    if (!watchedMemberId || !orgId) {
+    if (!watchedMemberId) {
       methods.setValue("principalAmount", "");
       methods.setValue("interestAmount", "");
       return;
@@ -912,87 +1159,15 @@ export const useLoanCollection = () => {
 
     let cancelled = false;
     const timer = setTimeout(async () => {
-      try {
-        setIsSplitLoading(true);
-        methods.setValue("principalAmount", "");
-        methods.setValue("interestAmount", "");
-
-        const res = await getSchemeListAPI(Number(orgId));
-        if (cancelled) return;
-
-        const schemes = extractList(res);
-        const member = memberList.find(
-          (m) =>
-            String(m.Member_Id ?? m.Mem_Id) === String(watchedMemberId),
-        );
-        const schemeId =
-          activeSchemeId ||
-          pickSchemeId(member) ||
-          (schemes.length === 1
-            ? Number(
-                schemes[0]?.Scheme_Id ??
-                  schemes[0]?.Schem_Id ??
-                  schemes[0]?.scheme_id,
-              )
-            : null);
-
-        let scheme: any = null;
-        if (schemeId) {
-          scheme = schemes.find(
-            (s: any) =>
-              Number(s.Scheme_Id ?? s.Schem_Id ?? s.scheme_id) ===
-              Number(schemeId),
-          );
-        }
-
-        // If loan row had no scheme id, try match by scheme name on member/loan
-        if (!scheme && member) {
-          const schemeName = String(
-            member.Scheme_Name || member.scheme_name || "",
-          ).trim();
-          if (schemeName) {
-            scheme = schemes.find(
-              (s: any) =>
-                String(s.Scheme_Name || s.scheme_name || "")
-                  .trim()
-                  .toLowerCase() === schemeName.toLowerCase(),
-            );
-          }
-        }
-
-        const rates = pickSchemeRates(scheme);
-        if (!rates) {
-          toast.error(
-            "Scheme Prn_1000 / Intt_1000 not found for selected member",
-          );
-          methods.setValue("principalAmount", "");
-          methods.setValue("interestAmount", "");
-          return;
-        }
-
-        if (scheme?.Scheme_Id || scheme?.Schem_Id) {
-          setActiveSchemeId(
-            Number(scheme.Scheme_Id ?? scheme.Schem_Id ?? scheme.scheme_id),
-          );
-        }
-
-        const split = splitBySchemePer1000(
-          watchedAmount,
-          rates.prn1000,
-          rates.intt1000,
-        );
-        if (cancelled) return;
-        methods.setValue("principalAmount", split.principal);
-        methods.setValue("interestAmount", split.interest);
-      } catch {
-        if (!cancelled) {
-          toast.error("Failed to calculate principal / interest");
-          methods.setValue("principalAmount", "");
-          methods.setValue("interestAmount", "");
-        }
-      } finally {
-        if (!cancelled) setIsSplitLoading(false);
-      }
+      if (cancelled) return;
+      const member =
+        selectedMemberRef.current ||
+        findMemberRow(watchedMemberId, {
+          accountId: activeAccountId,
+          loanDate: selectedLoanDate,
+          loanAmount: selectedLoanAmount,
+        });
+      await applyPaymentSplit(watchedAmount, member, activeSchemeId);
     }, 450);
 
     return () => {
@@ -1000,7 +1175,7 @@ export const useLoanCollection = () => {
       clearTimeout(timer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [watchedAmount, watchedMemberId, orgId, activeSchemeId, memberList]);
+  }, [watchedAmount, watchedMemberId, activeSchemeId]);
 
   useEffect(() => {
     methods.setValue("groupId", "");
@@ -1018,6 +1193,7 @@ export const useLoanCollection = () => {
 
   useEffect(() => {
     methods.setValue("memberId", "");
+    methods.setValue("amount", "");
     clearLoanInfo();
 
     if (orgId && watchedGroupId && branchId) {
@@ -1035,25 +1211,12 @@ export const useLoanCollection = () => {
   useEffect(() => {
     if (!watchedMemberId) {
       clearLoanInfo();
-      return;
+      methods.setValue("amount", "");
+      methods.setValue("principalAmount", "");
+      methods.setValue("interestAmount", "");
     }
-
-    if (!orgId || !branchId || !watchedGroupId) return;
-
-    const member = memberList.find(
-      (m) =>
-        String(m.Member_Id ?? m.Mem_Id) === String(watchedMemberId),
-    );
-
-    loadLoanInfoAPICall(
-      Number(orgId),
-      Number(branchId),
-      String(watchedGroupId),
-      String(watchedMemberId),
-      member,
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- load when member/list ready
-  }, [watchedMemberId, watchedGroupId, orgId, branchId, memberList]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [watchedMemberId]);
 
   useEffect(() => {
     return () => {
@@ -1062,7 +1225,11 @@ export const useLoanCollection = () => {
   }, [dispatch]);
 
   const onToggleCollection = useCallback(
-    (memberId: string | number, checked: boolean) => {
+    (
+      memberId: string | number,
+      checked: boolean,
+      meta?: LoanRowMeta,
+    ) => {
       if (
         memberId === "" ||
         memberId === null ||
@@ -1072,11 +1239,10 @@ export const useLoanCollection = () => {
         return;
       }
 
-      const currentId = methods.getValues("memberId");
-
-      // Uncheck only the currently selected member
+      // Uncheck only the currently selected loan row
       if (!checked) {
-        if (String(currentId) !== String(memberId)) return;
+        if (!isSameLoanSelection(memberId, meta)) return;
+        selectionTokenRef.current += 1;
         methods.setValue("memberId", "", { shouldValidate: true });
         methods.setValue("amount", "");
         methods.setValue("principalAmount", "");
@@ -1086,16 +1252,63 @@ export const useLoanCollection = () => {
       }
 
       // Already selected — no-op
-      if (String(currentId) === String(memberId)) return;
+      if (isSameLoanSelection(memberId, meta)) return;
 
-      // Switch to this member (exclusive: only one at a time)
-      clearLoanInfo();
-      methods.setValue("amount", "");
+      const member = findMemberRow(memberId, meta);
+      if (!member) {
+        toast.error("Selected loan details not found");
+        return;
+      }
+
+      const token = ++selectionTokenRef.current;
+      schemeRatesRef.current = null;
+
       methods.setValue("principalAmount", "");
       methods.setValue("interestAmount", "");
+
+      // Optimistic fill from list row, then one GetLoanCycleList for full details
+      applyMemberLoanInfo(member);
       methods.setValue("memberId", memberId, { shouldValidate: true });
+
+      if (!orgId || !branchId || !watchedGroupId) return;
+
+      setIsLoanInfoLoading(true);
+      void loadSelectedLoanDetails(
+        Number(orgId),
+        Number(branchId),
+        String(watchedGroupId),
+        memberId,
+        member,
+      )
+        .then(async (enriched) => {
+          if (selectionTokenRef.current !== token) return;
+          applyMemberLoanInfo(enriched);
+          const demandVal =
+            methods.getValues("amount") || pickDemand(enriched);
+          await applyPaymentSplit(
+            demandVal,
+            enriched,
+            pickSchemeId(enriched),
+          );
+        })
+        .finally(() => {
+          if (selectionTokenRef.current === token) {
+            setIsLoanInfoLoading(false);
+          }
+        });
     },
-    [methods, clearLoanInfo],
+    [
+      methods,
+      clearLoanInfo,
+      isSameLoanSelection,
+      findMemberRow,
+      applyMemberLoanInfo,
+      loadSelectedLoanDetails,
+      applyPaymentSplit,
+      orgId,
+      branchId,
+      watchedGroupId,
+    ],
   );
 
   const handleSuccessClose = useCallback(
@@ -1124,5 +1337,8 @@ export const useLoanCollection = () => {
     showSuccessMessage,
     successMessage,
     handleSuccessClose,
+    activeAccountId,
+    selectedLoanDate,
+    selectedLoanAmount,
   };
 };

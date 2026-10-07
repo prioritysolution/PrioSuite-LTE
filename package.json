@@ -48,5 +48,9 @@
     "shadcn": "^3.8.5",
     "tailwindcss": "^4",
     "typescript": "^5"
+  },
+  "allowScripts": {
+    "msw@2.12.10": true,
+    "unrs-resolver@1.11.1": true
   }
 }

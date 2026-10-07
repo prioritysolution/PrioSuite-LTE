@@ -7,7 +7,13 @@ import {
   saveFailure,
   setCoList,
 } from "./NewApplicationReducer";
-import { getCoListAPI, saveGroupLoanAPI } from "./NewApplicationApi";
+import {
+  extractLoanOtherInfoRow,
+  getCoListAPI,
+  getLoanOtherInfoAPI,
+  mapLoanOtherInfoFields,
+  saveGroupLoanAPI,
+} from "./NewApplicationApi";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -123,17 +129,43 @@ export const useNewApplicationHook = () => {
   const submitMutation = useMutation({
     mutationFn: async (data: IGroupLoanForm) => {
       dispatch(saveStart());
+      const loanDate = toApiDate(data.loan_date);
+      const schemeId = Number(data.scheme_id);
+
+      // Fetch loan-other details on save (same as Get Details → Accept),
+      // so Accept is not required before Save Entry.
+      const enrichedMembers = await Promise.all(
+        data.members.map(async (member) => {
+          if (Number(member.loan_amount) <= 0) return member;
+
+          const infoRes = await getLoanOtherInfoAPI(
+            orgId,
+            schemeId,
+            loanDate,
+            member.mem_id,
+            Number(member.loan_amount),
+          );
+          const resData = extractLoanOtherInfoRow(infoRes);
+          if (!resData) {
+            throw new Error(
+              `Unable to get loan details for member ${member.member_no || member.mem_id}`,
+            );
+          }
+          return { ...member, ...mapLoanOtherInfoFields(resData) };
+        }),
+      );
+
       const payload = {
         group_id: data.group_id,
-        loan_date: toApiDate(data.loan_date),
-        scheme_id: Number(data.scheme_id),
+        loan_date: loanDate,
+        scheme_id: schemeId,
         roi: data.roi,
         repay_mode: data.repay_mode,
         tot_loan_amt: data.appl_amt,
         co_id: data.co_id,
         branch_id: Number(data.branch_id) || cookieBranchId,
         org_id: orgId,
-        mem_details: data.members
+        mem_details: enrichedMembers
           .filter((m) => Number(m.loan_amount) > 0)
           .map((m) => ({
             mem_id: m.mem_id,

@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Menu,
   Bell,
@@ -11,6 +12,8 @@ import {
   LogOut,
   AlertTriangle,
 } from "lucide-react";
+import { MdOutlineSupportAgent } from "react-icons/md";
+import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { useGlobalContext } from "@/context/GlobalContext";
@@ -43,6 +46,8 @@ const Navbar = ({
   onMenuToggle,
 }: TopBarProps) => {
   const router = useRouter();
+  const pathname = usePathname();
+  const isSupportActive = pathname?.startsWith("/support");
   const { user, logout, isMounted } = useGlobalContext();
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
 
@@ -98,6 +103,22 @@ const Navbar = ({
 
       {/* ── Action icons ── */}
       <div className="flex items-center gap-1 sm:gap-1.5 flex-shrink-0">
+        {/* Support */}
+        <Link
+          href="/support"
+          title="Support"
+          aria-label="Support"
+          aria-current={isSupportActive ? "page" : undefined}
+          className={cn(
+            "p-2 rounded-lg transition-colors cursor-pointer",
+            isSupportActive
+              ? "text-white bg-white/15"
+              : "text-white/75 hover:text-white hover:bg-white/10",
+          )}
+        >
+          <MdOutlineSupportAgent className="w-[22px] h-[22px]" />
+        </Link>
+
         {/* Notifications */}
         <button
           className="relative p-2 rounded-lg text-white/75 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"

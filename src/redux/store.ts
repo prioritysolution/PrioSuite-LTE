@@ -21,6 +21,7 @@ import groupRegisterReducer from "@/container/customer-reports/group-register/Gr
 import memberRegisterReducer from "@/container/customer-reports/member-register/MemberRegisterReducer";
 import issueRegisterReducer from "@/container/loan-reports/issue-register/IssueRegisterReducer";
 import collectionRegisterReducer from "@/container/loan-reports/collection-register/CollectionRegisterReducer";
+import supportReducer from "@/container/support/SupportReducer";
 
 export const store = configureStore({
   reducer: {
@@ -46,6 +47,7 @@ export const store = configureStore({
     memberRegister: memberRegisterReducer,
     issueRegister: issueRegisterReducer,
     collectionRegister: collectionRegisterReducer,
+    support: supportReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({
