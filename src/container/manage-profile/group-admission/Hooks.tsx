@@ -94,6 +94,7 @@ const schema = yup.object().shape({
     otherwise: (schema) => schema.nullable().notRequired(),
   }),
   grp_type: yup.number().transform((value) => (Number.isNaN(value) ? undefined : value)).required("Group type is required"),
+  collection_day: yup.number().transform((value) => (Number.isNaN(value) ? undefined : value)).required("Group collection day is required"),
   co_id: yup.number().transform((value) => (Number.isNaN(value) ? undefined : value)).required("CO is required"),
   adm_date: yup.string().required("Admission date is required"),
   adm_amt: yup.number().transform((value) => (Number.isNaN(value) ? undefined : value)).required("Admission fee is required"),
@@ -115,6 +116,7 @@ export const useGroupAdmissionHook = () => {
       txn_mode: "Cash",
       flowMode: "add",
       branch_id: "",
+      collection_day: "",
       adm_date: format(new Date(), "yyyy-MM-dd"),
     },
     resolver: yupResolver(schema) as any,
@@ -180,6 +182,13 @@ export const useGroupAdmissionHook = () => {
         area_vill: data.Vill_Area ?? data.Area_Vill ?? "",
         mem_no: data.Mem_No ?? data.mem_no ?? "",
         grp_type: data.Group_Type ?? data.Grp_Type ?? "",
+        collection_day: (() => {
+          const day =
+            data.Collection_Day ?? data.collection_day ?? data.Coll_Day;
+          return day === "" || day === undefined || day === null
+            ? ""
+            : Number(day);
+        })(),
         co_id: data.CO_Id ?? data.Co_Id ?? "",
         adm_amt: admAmt === "" || admAmt === undefined || admAmt === null ? "" : Number(admAmt),
         grp_sts: data.Status ?? data.Grp_Sts ?? "",
@@ -219,6 +228,7 @@ export const useGroupAdmissionHook = () => {
         area_vill: Number(data.area_vill),
         mem_no: data.mem_no ? Number(data.mem_no) : undefined,
         grp_type: Number(data.grp_type),
+        collection_day: Number(data.collection_day),
         co_id: Number(data.co_id),
         adm_date: toDbDate(data.adm_date),
         adm_amt: Number(data.adm_amt),
@@ -260,6 +270,7 @@ export const useGroupAdmissionHook = () => {
       methods.reset({
         txn_mode: "Cash",
         branch_id: "",
+        collection_day: "",
         adm_date: format(new Date(), "yyyy-MM-dd"),
         adm_amt: defaultAdmAmt === "" ? "" : defaultAdmAmt,
       });
@@ -274,6 +285,7 @@ export const useGroupAdmissionHook = () => {
     methods.reset({
       txn_mode: "Cash",
       branch_id: "",
+      collection_day: "",
       adm_date: format(new Date(), "yyyy-MM-dd"),
       adm_amt: defaultAdmAmt === "" ? "" : defaultAdmAmt,
     });

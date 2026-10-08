@@ -15,6 +15,7 @@ import forgotPasswordReducer from "@/container/auth/forgot-password/ForgotPasswo
 import personalLedgerReducer from "@/container/loan-reports/personal-ledger/PersonalLedgerReducer";
 import loanIssueReducer from "@/container/loan-entry/loan-issue/LoanIssueReducer";
 import loanCollectionReducer from "@/container/loan-entry/loan-collection/LoanCollectionReducer";
+import demandGenerationReducer from "@/container/loan-entry/demand-generation/DemandGenerationReducer";
 import voucherReducer from "@/container/voucher/VoucherReducer";
 import cashAccountReducer from "@/container/financialReports/cashAccount/cashAccountReducer";
 import groupRegisterReducer from "@/container/customer-reports/group-register/GroupRegisterReducer";
@@ -37,6 +38,7 @@ export const store = configureStore({
     newApplication: newApplicationReducer,
     loanIssue: loanIssueReducer,
     loanCollection: loanCollectionReducer,
+    demandGeneration: demandGenerationReducer,
     dashboard: dashboardReducer,
     login: loginReducer,
     forgotPassword: forgotPasswordReducer,

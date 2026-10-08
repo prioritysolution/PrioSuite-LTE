@@ -18,6 +18,16 @@ interface Props {
   isEditMode: boolean;
 }
 
+const COLLECTION_DAY_OPTIONS = [
+  { label: "Sunday", value: 1 },
+  { label: "Monday", value: 2 },
+  { label: "Tuesday", value: 3 },
+  { label: "Wednesday", value: 4 },
+  { label: "Thursday", value: 5 },
+  { label: "Friday", value: 6 },
+  { label: "Saturday", value: 7 },
+];
+
 const extractList = (res: any): any[] => {
   const candidates = [
     res?.Data,
@@ -168,6 +178,18 @@ export const BasicAndAdmissionDetails = (_props: Props) => {
           isRequired={true}
           loading={typeLoading}
           placeholder="Select group type"
+        />
+
+        <DropdownField
+          control={control}
+          name="collection_day"
+          label="Group Collection Day"
+          options={COLLECTION_DAY_OPTIONS}
+          optionLabelKey="label"
+          optionValueKey="value"
+          isSearch={true}
+          isRequired={true}
+          placeholder="Select collection day"
         />
 
         <DropdownField
