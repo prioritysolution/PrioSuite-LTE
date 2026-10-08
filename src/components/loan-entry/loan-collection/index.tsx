@@ -7,7 +7,6 @@ import {
   Loader2,
   RefreshCw,
   Save,
-  Wallet,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Form } from "@/components/ui/form";
@@ -15,19 +14,11 @@ import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/common/formFields/DatePicker";
 import DropdownField from "@/common/formFields/DropdownField";
 import InputField from "@/common/formFields/InputField";
-import RadioField from "@/common/formFields/RadioFields";
 import SuccessMessage from "@/common/SuccessMessage";
 import { LoanCollectionProps } from "@/container/loan-entry/loan-collection/LoanCollectionType";
 import MemberDetailsSection from "./MemberDetailsSection";
 import { getBranchListAPI } from "@/container/loan-reports/detailed-list/DetailedListApi";
 import { useGlobalContext } from "@/context/GlobalContext";
-
-const transModeOptions = [
-  { value: "1", label: "Cash" },
-  { value: "2", label: "Bank" },
-];
-
-const bankAccountOptions = [{ label: "Main Bank Account", value: 1 }];
 
 const extractList = (res: any): any[] => {
   const candidates = [
@@ -51,10 +42,10 @@ const LoanCollectionComponent = ({
   memberList,
   isGroupLoading,
   isMemberLoading,
-  isLoanInfoLoading,
   isSplitLoading,
   loading,
   onToggleCollection,
+  selectedLoans = [],
   selectedAccountId = null,
   selectedLoanDate = null,
   selectedLoanAmount = null,
@@ -70,8 +61,6 @@ const LoanCollectionComponent = ({
   const selectedBranchId = form.watch("branchId");
   const selectedGroup = form.watch("groupId");
   const selectedMemberId = form.watch("memberId");
-  const transMode = form.watch("transMode");
-  const isBankMode = transMode === "2";
 
   const { data: branchData, isLoading: branchLoading } = useQuery({
     queryKey: ["branchList", user?.org_id],
@@ -187,67 +176,9 @@ const LoanCollectionComponent = ({
             selectedLoanAmount={selectedLoanAmount}
             isLoading={isMemberLoading}
             hasGroup={!!selectedGroup}
+            selectedLoans={selectedLoans}
             onToggleCollection={onToggleCollection}
           />
-
-          {/* Loan info (read-only labels) */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="bg-primary/5 px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                  <Wallet size={18} />
-                </div>
-                <h3 className="font-semibold text-primary text-lg">
-                  Loan Information
-                </h3>
-              </div>
-              {isLoanInfoLoading && (
-                <Loader2 className="h-4 w-4 animate-spin text-primary" />
-              )}
-            </div>
-
-            <div className="p-4 sm:p-5 lg:p-6 form-grid">
-              <InputField
-                control={form.control}
-                name="loanDate"
-                label="Loan Date"
-                placeholder="—"
-                disabled
-              />
-
-              <InputField
-                control={form.control}
-                name="loanAmount"
-                label="Loan Amount"
-                placeholder="—"
-                disabled
-              />
-
-              <InputField
-                control={form.control}
-                name="installmentAmount"
-                label="Installment Amount"
-                placeholder="—"
-                disabled
-              />
-
-              <InputField
-                control={form.control}
-                name="currentBalance"
-                label="Current Balance"
-                placeholder="—"
-                disabled
-              />
-
-              <InputField
-                control={form.control}
-                name="demand"
-                label="Demand"
-                placeholder="—"
-                disabled
-              />
-            </div>
-          </div>
 
           {/* Payment entry */}
           <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
@@ -321,37 +252,6 @@ const LoanCollectionComponent = ({
                 label="Ref Voucher No"
                 placeholder="Enter ref voucher no"
               />
-
-              <RadioField
-                control={form.control}
-                name="transMode"
-                label="Trans Mode"
-                options={transModeOptions}
-                orientation="horizontal"
-                isRequired
-              />
-
-              {isBankMode && (
-                <>
-                  <DropdownField
-                    control={form.control}
-                    name="bankId"
-                    label="Select Bank Account"
-                    options={bankAccountOptions}
-                    optionLabelKey="label"
-                    optionValueKey="value"
-                    searchPlaceholder="Select bank account..."
-                    isRequired
-                  />
-
-                  <InputField
-                    control={form.control}
-                    name="bankRef"
-                    label="Bank References"
-                    placeholder="Txn ID / Cheque No"
-                  />
-                </>
-              )}
             </div>
           </div>
 

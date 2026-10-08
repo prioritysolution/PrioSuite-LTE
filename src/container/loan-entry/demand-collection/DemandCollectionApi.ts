@@ -1,170 +1,136 @@
-import { DemandCollectionMember } from "./DemandCollectionType";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { doGetApiCall, doPostApiCall } from "@/lib/axios";
+import { endPoints } from "@/services/apiEndpoints";
+import {
+  DemandCollectionMember,
+  DemandCollectionSummary,
+} from "./DemandCollectionType";
 
-export interface DummyGroup {
-  Group_Id: number;
-  Group_No: string;
-  Group_Name: string;
-  members: DemandCollectionMember[];
-}
+export const getSahayikaListAPI = (orgId: number, branchId: number) =>
+  doGetApiCall({ url: endPoints.getSahayikaList(orgId, branchId) });
 
-export interface DummySahayika {
-  CO_Id: number;
-  CO_Name: string;
-  CO_Code: string;
-  groups: DummyGroup[];
-}
+export const getSahayikaGroupListAPI = (
+  orgId: number,
+  branchId: number,
+  coId: number,
+) => doGetApiCall({ url: endPoints.getSahayikaGroupList(orgId, branchId, coId) });
 
-export const dummySahayikaList: DummySahayika[] = [
-  {
-    CO_Id: 1,
-    CO_Name: "Anita Devi",
-    CO_Code: "CO001",
-    groups: [
-      {
-        Group_Id: 101,
-        Group_No: "GRP101",
-        Group_Name: "Maa Sarala",
-        members: [
-          {
-            Member_Id: 10101,
-            Member_No: "M10101",
-            Member_Name: "Sabita Nayak",
-            FatHusb_Name: "Ramesh Nayak",
-            Loan_Date: "2026-01-12",
-            Loan_Amount: 20000,
-            Installment_Amt: 850,
-            Outs_Amount: 12500,
-            Demand: 850,
-          },
-          {
-            Member_Id: 10102,
-            Member_No: "M10102",
-            Member_Name: "Laxmi Behera",
-            FatHusb_Name: "Suresh Behera",
-            Loan_Date: "2026-02-04",
-            Loan_Amount: 15000,
-            Installment_Amt: 720,
-            Outs_Amount: 9000,
-            Demand: 720,
-          },
-          {
-            Member_Id: 10103,
-            Member_No: "M10103",
-            Member_Name: "Kuntala Das",
-            FatHusb_Name: "Bikash Das",
-            Loan_Date: "2025-11-18",
-            Loan_Amount: 25000,
-            Installment_Amt: 1100,
-            Outs_Amount: 18000,
-            Demand: 1100,
-          },
-        ],
-      },
-      {
-        Group_Id: 102,
-        Group_No: "GRP102",
-        Group_Name: "Jagannath SHG",
-        members: [
-          {
-            Member_Id: 10201,
-            Member_No: "M10201",
-            Member_Name: "Pramila Swain",
-            FatHusb_Name: "Ajay Swain",
-            Loan_Date: "2026-03-02",
-            Loan_Amount: 18000,
-            Installment_Amt: 640,
-            Outs_Amount: 7600,
-            Demand: 640,
-          },
-          {
-            Member_Id: 10202,
-            Member_No: "M10202",
-            Member_Name: "Sandhya Rout",
-            FatHusb_Name: "Manoj Rout",
-            Loan_Date: "2025-12-09",
-            Loan_Amount: 12000,
-            Installment_Amt: 500,
-            Outs_Amount: 5400,
-            Demand: 500,
-          },
-        ],
-      },
-    ],
-  },
-  {
-    CO_Id: 2,
-    CO_Name: "Sunita Malik",
-    CO_Code: "CO002",
-    groups: [
-      {
-        Group_Id: 201,
-        Group_No: "GRP201",
-        Group_Name: "Maa Tarini",
-        members: [
-          {
-            Member_Id: 20101,
-            Member_No: "M20101",
-            Member_Name: "Basanti Jena",
-            FatHusb_Name: "Prakash Jena",
-            Loan_Date: "2026-01-20",
-            Loan_Amount: 30000,
-            Installment_Amt: 1350,
-            Outs_Amount: 21000,
-            Demand: 1350,
-          },
-          {
-            Member_Id: 20102,
-            Member_No: "M20102",
-            Member_Name: "Reena Sahoo",
-            FatHusb_Name: "Deba Sahoo",
-            Loan_Date: "2026-04-11",
-            Loan_Amount: 10000,
-            Installment_Amt: 480,
-            Outs_Amount: 4200,
-            Demand: 480,
-          },
-        ],
-      },
-      {
-        Group_Id: 202,
-        Group_No: "GRP202",
-        Group_Name: "Shakti Group",
-        members: [
-          {
-            Member_Id: 20201,
-            Member_No: "M20201",
-            Member_Name: "Mamata Barik",
-            FatHusb_Name: "Santosh Barik",
-            Loan_Date: "2025-10-15",
-            Loan_Amount: 22000,
-            Installment_Amt: 980,
-            Outs_Amount: 15000,
-            Demand: 980,
-          },
-          {
-            Member_Id: 20202,
-            Member_No: "M20202",
-            Member_Name: "Padmini Mohanty",
-            FatHusb_Name: "Ranjit Mohanty",
-            Loan_Date: "2026-02-28",
-            Loan_Amount: 16000,
-            Installment_Amt: 760,
-            Outs_Amount: 8800,
-            Demand: 760,
-          },
-          {
-            Member_Id: 20203,
-            Member_No: "M20203",
-            Member_Name: "Urmila Parida",
-            FatHusb_Name: "Gopal Parida",
-            Loan_Date: "2026-03-16",
-            Loan_Amount: 14000,
-            Installment_Amt: 590,
-            Outs_Amount: 6100,
-            Demand: 590,
-          },
-        ],
-      },
-    ],
-  },
-];
+export const getDemandCollectionDetailsAPI = (
+  orgId: number,
+  branchId: number,
+  collDate: string,
+  groupId: number,
+) =>
+  doGetApiCall({
+    url: endPoints.getDemandCollectionDetails(orgId, branchId, collDate, groupId),
+  });
+
+export const postDemandCollectionAPI = (body: {
+  org_id: number;
+  branch_id: number;
+  coll_date: string;
+  co_id: number;
+  group_id: number;
+  coll_data: {
+    account_id: number;
+    member_id: number;
+    coll_amount: number;
+  }[];
+}) => doPostApiCall({ url: endPoints.postDemandCollection, bodyData: body });
+
+export const extractList = (res: any): any[] => {
+  const candidates = [
+    res?.Data,
+    res?.data?.Data,
+    res?.details,
+    res?.data?.details,
+    res?.data?.data,
+    res?.data,
+    res,
+  ];
+  const nonEmpty = candidates.find(
+    (item) => Array.isArray(item) && item.length > 0,
+  );
+  if (Array.isArray(nonEmpty) && typeof nonEmpty[0] === "object") return nonEmpty;
+  const list = candidates.find(
+    (item) => Array.isArray(item) && (item.length === 0 || typeof item[0] === "object"),
+  );
+  return Array.isArray(list) ? list : [];
+};
+
+const pick = (item: any, keys: string[]) => {
+  if (!item) return "";
+  for (const key of keys) {
+    const value = item[key];
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      return value;
+    }
+  }
+  return "";
+};
+
+export const toAmount = (value: unknown) => {
+  if (value === "" || value === null || value === undefined) return 0;
+  const amount = Number(value);
+  return Number.isNaN(amount) ? 0 : amount;
+};
+
+export const flattenDetails = (details: unknown): string => {
+  if (details === null || details === undefined || details === "") return "";
+  if (typeof details === "string") return details;
+  if (Array.isArray(details)) {
+    return details.map((item) => flattenDetails(item)).filter(Boolean).join(", ");
+  }
+  if (typeof details === "object") {
+    return Object.values(details as Record<string, unknown>)
+      .map((item) => flattenDetails(item))
+      .filter(Boolean)
+      .join(" ");
+  }
+  return String(details);
+};
+
+export const mapSummary = (summary: any): DemandCollectionSummary | null => {
+  if (!summary || typeof summary !== "object" || Array.isArray(summary)) {
+    return null;
+  }
+  return {
+    groupNo: String(pick(summary, ["Group_No"]) || ""),
+    groupName: String(pick(summary, ["Group_Name"]) || ""),
+    collectionDay: String(pick(summary, ["Collection_Day"]) || ""),
+    totalDemand: toAmount(summary.Total_Demand),
+    collAmount: toAmount(summary.Coll_Amount),
+    pendingDemand: toAmount(summary.Pending_Demand),
+    collectedCount: toAmount(summary.Collected_Count),
+    accountCount: toAmount(summary.Account_Count),
+    isFullyCollected: Boolean(summary.Is_Fully_Collected),
+    demandGenerated: Boolean(summary.Demand_Generated),
+  };
+};
+
+export const mapCollectionMembers = (list: any[]): DemandCollectionMember[] =>
+  list.map((item) => {
+    const isCollected = Number(item?.Is_Collected) === 1;
+    const pending = toAmount(pick(item, ["Pending_Demand", "Total_Demand"]));
+    const installment = toAmount(pick(item, ["Instl_Amount", "Installment_Amt"]));
+    const accountNo = pick(item, ["Account_No"]);
+    const accountId = toAmount(pick(item, ["Account_Id"]));
+    return {
+      accountId,
+      memberId: toAmount(pick(item, ["Member_Id"])),
+      memberNo: String(pick(item, ["Member_No"]) || ""),
+      memberName: String(pick(item, ["Member_Name"]) || ""),
+      guardianName: String(pick(item, ["Guardian_Name", "FatHusb_Name"]) || ""),
+      accountLabel: String(accountNo || accountId || ""),
+      loanDate: String(pick(item, ["Loan_Date"]) || ""),
+      totalDemand: toAmount(pick(item, ["Total_Demand"])),
+      pendingDemand: pending,
+      outstanding: toAmount(pick(item, ["Outstanding", "Outs_Amount"])),
+      collAmount: toAmount(pick(item, ["Coll_Amount"])),
+      isCollected,
+      voucherNo: String(pick(item, ["Voucher_No"]) || ""),
+      payAmount: isCollected
+        ? String(toAmount(pick(item, ["Coll_Amount"])))
+        : String(pending > 0 ? pending : installment),
+    };
+  });

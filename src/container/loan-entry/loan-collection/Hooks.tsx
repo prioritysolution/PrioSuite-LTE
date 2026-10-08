@@ -389,8 +389,6 @@ export const useLoanCollection = () => {
 
   const orgId = getCookieData<string | number>("priobank-lite-org_id");
   const cookieBranchId = getCookieData<string | number>("priobank-lite-branch_id");
-  const finId = getCookieData<string | number>("priobank-lite-financial_Id");
-
   const groupList = useSelector(
     (state: RootState) => state.loanCollection.groupList,
   );
@@ -408,6 +406,10 @@ export const useLoanCollection = () => {
   const [activeLoanCycle, setActiveLoanCycle] = useState<string>("");
   const [activeAccountId, setActiveAccountId] = useState<number | null>(null);
   const [activeSchemeId, setActiveSchemeId] = useState<number | null>(null);
+  const [selectedLoans, setSelectedLoans] = useState<
+    { memberId: string | number } & LoanRowMeta
+  >([]);
+  const selectedLoansRef = useRef(selectedLoans);
   const [selectedLoanDate, setSelectedLoanDate] = useState<string>("");
   const [selectedLoanAmount, setSelectedLoanAmount] = useState<
     string | number | ""
@@ -460,17 +462,9 @@ export const useLoanCollection = () => {
     interestAmount: yup.mixed(),
     penalAmount: yup.mixed(),
     refVoucherNo: yup.string().optional(),
-    transMode: yup.string().required("Transaction Mode is Required"),
-    bankId: yup.mixed().when("transMode", {
-      is: "2",
-      then: (s: any) => s.required("Bank Account is required"),
-      otherwise: (s: any) => s.optional(),
-    }),
-    bankRef: yup.string().when("transMode", {
-      is: "2",
-      then: (s: any) => s.optional(),
-      otherwise: (s: any) => s.optional(),
-    }),
+    transMode: yup.string().optional(),
+    bankId: yup.mixed().optional(),
+    bankRef: yup.string().optional(),
   });
 
   const methods = useForm<LoanCollectionForm>({
@@ -510,6 +504,8 @@ export const useLoanCollection = () => {
     setSelectedLoanAmount("");
     selectedMemberRef.current = null;
     schemeRatesRef.current = null;
+    selectedLoansRef.current = [];
+    setSelectedLoans([]);
     setIsSplitLoading(false);
     setIsLoanInfoLoading(false);
   }, [methods]);
@@ -535,6 +531,8 @@ export const useLoanCollection = () => {
     setSelectedLoanAmount("");
     selectedMemberRef.current = null;
     schemeRatesRef.current = null;
+    selectedLoansRef.current = [];
+    setSelectedLoans([]);
     setIsSplitLoading(false);
     setIsLoanInfoLoading(false);
   }, [methods, dispatch]);
@@ -1056,66 +1054,57 @@ export const useLoanCollection = () => {
       const payload = {
         org_id: Number(orgId),
         branch_id: Number(data.branchId || cookieBranchId),
-        fin_id: Number(finId),
-        group_id: Number(data.groupId),
-        member_id: Number(data.memberId),
-        account_id: activeAccountId,
-        loan_cycle: activeLoanCycle ? Number(activeLoanCycle) : null,
         coll_date: formattedDate,
-        amount: Number(data.amount),
-        prn_amt: Number(data.principalAmount) || 0,
-        intt_amt: Number(data.interestAmount) || 0,
-        penal_amt: Number(data.penalAmount) || 0,
-        ref_vouch: data.refVoucherNo || "",
-        trans_mode: Number(data.transMode),
-        bank_id:
-          Number(data.transMode) === 2 && data.bankId
-            ? Number(data.bankId)
-            : null,
-        bank_ref:
-          Number(data.transMode) === 2 ? data.bankRef || "" : "",
+        ref_vouch: data.refVoucherNo?.trim() || null,
+        coll_data: [
+          {
+            account_id: activeAccountId,
+            member_id: Number(data.memberId),
+            coll_amount: Number(data.amount),
+            prn_amount: Number(data.principalAmount) || 0,
+            intt_amount: Number(data.interestAmount) || 0,
+            penal_amount: Number(data.penalAmount) || 0,
+          },
+        ],
       };
 
       const res = await postCollectionAPI(payload);
-      const dataBlock = res?.Data || res?.data?.Data || res?.data || res;
-      const message =
-        dataBlock?.Message ||
-        dataBlock?.message ||
-        res?.Message ||
-        res?.message ||
-        res?.massage ||
-        res?.data?.message ||
-        "";
-      const voucherNo =
-        dataBlock?.Voucher_No ||
-        dataBlock?.voucher_no ||
-        dataBlock?.VoucherNo ||
-        res?.Voucher_No ||
-        res?.voucher_no ||
-        res?.data?.Voucher_No ||
-        "";
+      const dataBlock = res?.Data && !Array.isArray(res.Data) ? res.Data : {};
+      const message = String(res?.message || dataBlock?.Message || "");
+      const details =
+        typeof res?.details === "string"
+          ? res.details
+          : typeof dataBlock?.Message === "string"
+            ? dataBlock.Message
+            : "";
+      const voucherNo = String(dataBlock?.Voucher_No || "");
 
-      const isSuccess =
-        message === "Success" ||
-        res?.status === "Success" ||
-        res?.data?.status === "Success" ||
-        String(message).toLowerCase().includes("success") ||
-        !!voucherNo ||
-        !!res?.Data;
-
-      if (isSuccess) {
-        const lines = [
-          message || "Loan Collection Posted Successfully !!",
-          voucherNo ? `Voucher No: ${voucherNo}` : "",
-        ].filter(Boolean);
-        setSuccessMessage(lines.join("\n"));
-        setShowSuccessMessage(true);
-      } else {
-        toast.error(message || "Failed to save collection.");
+      if (/error/i.test(message) || !voucherNo) {
+        toast.error(details || message || "Failed to save collection.");
+        return;
       }
+
+      const lines = [
+        details || "Loan Collection Posted Successfully !!",
+        `Receipt No: ${voucherNo}`,
+      ];
+      setSuccessMessage(lines.join("\n"));
+      setShowSuccessMessage(true);
     } catch (error: any) {
+      const body = error?.response?.data;
+      const details = body?.details;
+      const detailText =
+        typeof details === "string"
+          ? details
+          : details && typeof details === "object"
+            ? Object.values(details)
+                .flat()
+                .map((item) => String(item))
+                .filter(Boolean)
+                .join(" ")
+            : "";
       toast.error(
-        error?.response?.data?.message || "Something went wrong while saving!",
+        detailText || body?.message || "Something went wrong while saving!",
       );
     } finally {
       setLoading(false);
@@ -1124,16 +1113,7 @@ export const useLoanCollection = () => {
 
   const watchedGroupId = methods.watch("groupId");
   const watchedMemberId = methods.watch("memberId");
-  const watchedTransMode = methods.watch("transMode");
   const watchedAmount = methods.watch("amount");
-
-  useEffect(() => {
-    if (watchedTransMode !== "2") {
-      methods.setValue("bankId", "");
-      methods.setValue("bankRef", "");
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- clear bank fields on mode switch
-  }, [watchedTransMode]);
 
   // After user types Amount: split using cached scheme rates (no repeat GetScheme)
   useEffect(() => {
@@ -1224,36 +1204,74 @@ export const useLoanCollection = () => {
     };
   }, [dispatch]);
 
-  const onToggleCollection = useCallback(
+  const loansMatch = useCallback(
     (
       memberId: string | number,
-      checked: boolean,
-      meta?: LoanRowMeta,
+      meta: LoanRowMeta | undefined,
+      other: { memberId: string | number } & LoanRowMeta,
     ) => {
+      if (String(memberId) !== String(other.memberId)) return false;
+      const accountId = meta?.accountId;
       if (
-        memberId === "" ||
-        memberId === null ||
-        memberId === undefined
+        accountId !== null &&
+        accountId !== undefined &&
+        accountId !== "" &&
+        other.accountId !== null &&
+        other.accountId !== undefined &&
+        other.accountId !== ""
       ) {
-        toast.error("Invalid member selection");
+        return String(accountId) === String(other.accountId);
+      }
+      const dateKey = normalizeDateKey(meta?.loanDate);
+      const otherDate = normalizeDateKey(other.loanDate);
+      const amount =
+        meta?.loanAmount !== undefined &&
+        meta?.loanAmount !== null &&
+        meta?.loanAmount !== ""
+          ? Number(meta.loanAmount)
+          : null;
+      const otherAmount =
+        other.loanAmount !== undefined &&
+        other.loanAmount !== null &&
+        other.loanAmount !== ""
+          ? Number(other.loanAmount)
+          : null;
+      const sameDate = !dateKey || !otherDate || dateKey === otherDate;
+      const sameAmount =
+        amount === null ||
+        otherAmount === null ||
+        Number.isNaN(amount) ||
+        Number.isNaN(otherAmount) ||
+        amount === otherAmount;
+      return sameDate && sameAmount;
+    },
+    [],
+  );
+
+  const rememberLoan = useCallback(
+    (memberId: string | number, meta?: LoanRowMeta) => {
+      const entry = {
+        memberId,
+        accountId: meta?.accountId,
+        loanDate: meta?.loanDate,
+        loanAmount: meta?.loanAmount,
+      };
+      if (
+        selectedLoansRef.current.some((item) =>
+          loansMatch(memberId, meta, item),
+        )
+      ) {
         return;
       }
+      const next = [...selectedLoansRef.current, entry];
+      selectedLoansRef.current = next;
+      setSelectedLoans(next);
+    },
+    [loansMatch],
+  );
 
-      // Uncheck only the currently selected loan row
-      if (!checked) {
-        if (!isSameLoanSelection(memberId, meta)) return;
-        selectionTokenRef.current += 1;
-        methods.setValue("memberId", "", { shouldValidate: true });
-        methods.setValue("amount", "");
-        methods.setValue("principalAmount", "");
-        methods.setValue("interestAmount", "");
-        clearLoanInfo();
-        return;
-      }
-
-      // Already selected — no-op
-      if (isSameLoanSelection(memberId, meta)) return;
-
+  const activateLoan = useCallback(
+    (memberId: string | number, meta?: LoanRowMeta) => {
       const member = findMemberRow(memberId, meta);
       if (!member) {
         toast.error("Selected loan details not found");
@@ -1262,11 +1280,8 @@ export const useLoanCollection = () => {
 
       const token = ++selectionTokenRef.current;
       schemeRatesRef.current = null;
-
       methods.setValue("principalAmount", "");
       methods.setValue("interestAmount", "");
-
-      // Optimistic fill from list row, then one GetLoanCycleList for full details
       applyMemberLoanInfo(member);
       methods.setValue("memberId", memberId, { shouldValidate: true });
 
@@ -1298,16 +1313,66 @@ export const useLoanCollection = () => {
         });
     },
     [
-      methods,
-      clearLoanInfo,
-      isSameLoanSelection,
       findMemberRow,
+      methods,
       applyMemberLoanInfo,
-      loadSelectedLoanDetails,
-      applyPaymentSplit,
       orgId,
       branchId,
       watchedGroupId,
+      loadSelectedLoanDetails,
+      applyPaymentSplit,
+    ],
+  );
+
+  const onToggleCollection = useCallback(
+    (
+      memberId: string | number,
+      checked: boolean,
+      meta?: LoanRowMeta,
+    ) => {
+      if (
+        memberId === "" ||
+        memberId === null ||
+        memberId === undefined
+      ) {
+        toast.error("Invalid member selection");
+        return;
+      }
+
+      if (!checked) {
+        const next = selectedLoansRef.current.filter(
+          (item) => !loansMatch(memberId, meta, item),
+        );
+        selectedLoansRef.current = next;
+        setSelectedLoans(next);
+        if (!isSameLoanSelection(memberId, meta)) return;
+
+        selectionTokenRef.current += 1;
+        if (next.length === 0) {
+          methods.setValue("memberId", "", { shouldValidate: true });
+          methods.setValue("amount", "");
+          methods.setValue("principalAmount", "");
+          methods.setValue("interestAmount", "");
+          clearLoanInfo();
+          return;
+        }
+
+        const last = next[next.length - 1];
+        activateLoan(last.memberId, last);
+        return;
+      }
+
+      rememberLoan(memberId, meta);
+      if (isSameLoanSelection(memberId, meta)) return;
+      activateLoan(memberId, meta);
+    },
+    [
+      methods,
+      clearLoanInfo,
+      isSameLoanSelection,
+      loansMatch,
+      rememberLoan,
+      activateLoan,
     ],
   );
 
@@ -1334,6 +1399,7 @@ export const useLoanCollection = () => {
     isSplitLoading,
     loading,
     onToggleCollection,
+    selectedLoans,
     showSuccessMessage,
     successMessage,
     handleSuccessClose,

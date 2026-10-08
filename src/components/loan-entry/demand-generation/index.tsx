@@ -1,9 +1,18 @@
 "use client";
 
 import React from "react";
+import { format, isValid } from "date-fns";
 import { ClipboardList, Printer } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useGlobalContext } from "@/context/GlobalContext";
 import { DemandGenerationProps } from "@/container/loan-entry/demand-generation/DemandGenerationType";
 import DemandGenerationFilterForm from "./DemandGenerationFilterForm";
@@ -21,6 +30,9 @@ const DemandGenerationUI = ({
   onGenerate,
   onReset,
   onSelectionChange,
+  regenerateOpen,
+  onConfirmRegenerate,
+  onCancelRegenerate,
 }: DemandGenerationProps) => {
   const { user } = useGlobalContext();
   const printRef = React.useRef<HTMLDivElement>(null);
@@ -28,6 +40,11 @@ const DemandGenerationUI = ({
 
   const selectedCoId = form.watch("co_id");
   const selectedGroupId = form.watch("group_id");
+  const demandDateValue = form.watch("demand_date");
+  const demandDate =
+    demandDateValue && isValid(new Date(demandDateValue))
+      ? format(new Date(demandDateValue), "dd-MM-yyyy")
+      : "";
   const sahayikaName =
     coOptions.find((item) => String(item.value) === String(selectedCoId))
       ?.label || "";
@@ -56,7 +73,7 @@ const DemandGenerationUI = ({
               </p>
               {hasResults && (
                 <p className="mt-2 text-sm font-semibold text-gray-800">
-                  {rows.length} {rows.length === 1 ? "member" : "members"}
+                  {rows.length} {rows.length === 1 ? "account" : "accounts"}
                 </p>
               )}
             </div>
@@ -99,11 +116,11 @@ const DemandGenerationUI = ({
                       <h3 className="font-bold text-primary text-base">
                         Demand List
                       </h3>
-                      {groupName ? (
+                      {groupName || demandDate ? (
                         <p className="text-xs sm:text-sm text-gray-500 truncate">
-                          {sahayikaName}
-                          {sahayikaName && groupName ? " · " : ""}
-                          {groupName}
+                          {[demandDate, sahayikaName, groupName]
+                            .filter(Boolean)
+                            .join(" · ")}
                         </p>
                       ) : null}
                     </div>
@@ -136,8 +153,45 @@ const DemandGenerationUI = ({
           sahayikaName={sahayikaName}
           groupName={groupName}
           branchName={user?.branch_name || ""}
+          demandDate={demandDate}
         />
       )}
+
+      <Dialog
+        open={regenerateOpen}
+        onOpenChange={(open) => {
+          if (!open) onCancelRegenerate();
+        }}
+      >
+        <DialogContent className="sm:max-w-[440px] border border-gray-100 shadow-2xl rounded-xl">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold text-primary">
+              Demand already generated
+            </DialogTitle>
+            <DialogDescription className="text-sm text-gray-500 mt-1">
+              Demand already generated for this date. Regenerate?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="mt-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onCancelRegenerate}
+              disabled={generating}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              onClick={onConfirmRegenerate}
+              disabled={generating}
+              className="bg-primary hover:bg-primary/90 text-white"
+            >
+              Regenerate
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 };

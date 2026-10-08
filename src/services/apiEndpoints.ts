@@ -121,6 +121,26 @@ export const endPoints = {
   ) =>
     `${createApi}/Org/ProcessLoan/GetLoanOtherInfo?org_id=${orgId}&schem_id=${schemeId}&loan_date=${loanDate}&mem_id=${memId}&appl_amt=${applAmt}`,
   postApplication: `${createApi}/Org/ProcessLoan/PostApplication`,
+  getSahayikaList: (orgId: number, branchId: number) =>
+    `${createApi}/Org/ProcessLoan/GetSahayikaList?org_id=${orgId}&branch_id=${branchId}`,
+  getSahayikaGroupList: (orgId: number, branchId: number, coId: number) =>
+    `${createApi}/Org/ProcessLoan/GetSahayikaGroupList?org_id=${orgId}&branch_id=${branchId}&co_id=${coId}`,
+  generateDemand: `${createApi}/Org/ProcessLoan/GenerateDemand`,
+  getDemandMemberWise: (
+    orgId: number,
+    branchId: number,
+    demandDate: string,
+    groupId: number,
+  ) =>
+    `${createApi}/Org/ProcessLoan/GetDemandMemberWise?org_id=${orgId}&branch_id=${branchId}&demand_date=${demandDate}&group_id=${groupId}`,
+  getDemandCollectionDetails: (
+    orgId: number,
+    branchId: number,
+    collDate: string,
+    groupId: number,
+  ) =>
+    `${createApi}/Org/ProcessLoan/GetDemandCollectionDetails?org_id=${orgId}&branch_id=${branchId}&coll_date=${collDate}&group_id=${groupId}`,
+  postDemandCollection: `${createApi}/Org/ProcessLoan/PostDemandCollection`,
 
   // Branch List
   getBranchList: (orgId: number) =>
@@ -242,6 +262,104 @@ export const endPoints = {
     toDate: string,
   ) =>
     `${createApi}/Org/ManageProfile/GetLoanCollectionReport?org_id=${orgId}&group_id=0&member_id=0&from_date=${fromDate}&to_date=${toDate}&branch_id=${branchId}&loan_cycle=0`,
+
+  // MIS Reports — Daily Sheet
+  getDailySheet: (
+    orgId: number,
+    branchId: number,
+    fromDate: string,
+    toDate: string,
+    reportBranchId?: number | null,
+  ) => {
+    const params = new URLSearchParams({
+      org_id: String(orgId),
+      branch_id: String(branchId),
+      from_date: fromDate,
+    });
+    if (toDate) params.set("to_date", toDate);
+    if (reportBranchId !== undefined && reportBranchId !== null) {
+      params.set("report_branch_id", String(reportBranchId));
+    }
+    return `${createApi}/Org/MisReport/DailySheet?${params.toString()}`;
+  },
+  getDailySheetDetails: (
+    orgId: number,
+    branchId: number,
+    fromDate: string,
+    toDate: string,
+    reportBranchId?: number | null,
+    accountId?: number | null,
+  ) => {
+    const params = new URLSearchParams({
+      org_id: String(orgId),
+      branch_id: String(branchId),
+      from_date: fromDate,
+    });
+    if (toDate) params.set("to_date", toDate);
+    if (reportBranchId !== undefined && reportBranchId !== null) {
+      params.set("report_branch_id", String(reportBranchId));
+    }
+    if (accountId !== undefined && accountId !== null) {
+      params.set("account_id", String(accountId));
+    }
+    return `${createApi}/Org/MisReport/DailySheetDetails?${params.toString()}`;
+  },
+
+  // MIS Reports — Demand vs Collection
+  getDemandVsCollection: (query: {
+    orgId: number;
+    branchId: number;
+    fromDate: string;
+    toDate: string;
+    view: string;
+    reportBranchId?: number | null;
+    coId?: number | null;
+    groupId?: number | null;
+  }) => {
+    const params = new URLSearchParams({
+      org_id: String(query.orgId),
+      branch_id: String(query.branchId),
+      from_date: query.fromDate,
+      to_date: query.toDate,
+      view: query.view,
+    });
+    if (query.reportBranchId !== undefined && query.reportBranchId !== null) {
+      params.set("report_branch_id", String(query.reportBranchId));
+    }
+    if (query.coId !== undefined && query.coId !== null) {
+      params.set("co_id", String(query.coId));
+    }
+    if (query.groupId !== undefined && query.groupId !== null) {
+      params.set("group_id", String(query.groupId));
+    }
+    return `${createApi}/Org/MisReport/DemandVsCollection?${params.toString()}`;
+  },
+
+  // MIS Reports — CO Performance
+  getCoPerformance: (query: {
+    orgId: number;
+    branchId: number;
+    fromDate: string;
+    toDate: string;
+    view: string;
+    reportBranchId?: number | null;
+    coId?: number | null;
+  }) => {
+    const params = new URLSearchParams({
+      org_id: String(query.orgId),
+      branch_id: String(query.branchId),
+      from_date: query.fromDate,
+      to_date: query.toDate,
+      view: query.view,
+    });
+    if (query.reportBranchId !== undefined && query.reportBranchId !== null) {
+      params.set("report_branch_id", String(query.reportBranchId));
+    }
+    if (query.coId !== undefined && query.coId !== null) {
+      params.set("co_id", String(query.coId));
+    }
+    return `${createApi}/Org/MisReport/CoPerformance?${params.toString()}`;
+  },
 
   // Support Tickets
   getSupportTickets: (orgId: number, branchId: number) =>

@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
+import { useMemo } from "react";
 import { useFormContext, useWatch } from "react-hook-form";
 import { useQuery } from "@tanstack/react-query";
 import { getAreaListAPI } from "@/container/setup/area-master/AreaMasterApi";
@@ -19,27 +20,53 @@ interface Props {
 }
 
 const COLLECTION_DAY_OPTIONS = [
-  { label: "Sunday", value: 1 },
-  { label: "Monday", value: 2 },
-  { label: "Tuesday", value: 3 },
-  { label: "Wednesday", value: 4 },
-  { label: "Thursday", value: 5 },
-  { label: "Friday", value: 6 },
-  { label: "Saturday", value: 7 },
+  { label: "Sunday", value: "Sunday" },
+  { label: "Monday", value: "Monday" },
+  { label: "Tuesday", value: "Tuesday" },
+  { label: "Wednesday", value: "Wednesday" },
+  { label: "Thursday", value: "Thursday" },
+  { label: "Friday", value: "Friday" },
+  { label: "Saturday", value: "Saturday" },
 ];
 
+const parsePayload = (res: any): any => {
+  if (typeof res !== "string") return res;
+  const trimmed = res.trim();
+  if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) return res;
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return res;
+  }
+};
+
 const extractList = (res: any): any[] => {
+  const payload = parsePayload(res);
   const candidates = [
-    res?.Data,
-    res?.details,
-    res?.data?.Data,
-    res?.data?.details,
-    res?.data?.data,
-    res?.data,
-    res,
+    payload?.Data,
+    payload?.data?.Data,
+    payload?.details,
+    payload?.data?.details,
+    payload?.data?.data,
+    payload?.data,
+    payload,
   ];
+  const nonEmpty = candidates.find(
+    (item) => Array.isArray(item) && item.length > 0,
+  );
+  if (nonEmpty) return nonEmpty;
   const list = candidates.find((item) => Array.isArray(item));
   return Array.isArray(list) ? list : [];
+};
+
+const toCoOption = (opt: any) => {
+  const name = String(opt?.CO_Name ?? opt?.Co_Name ?? opt?.co_name ?? "").trim();
+  const code = String(opt?.CO_Code ?? opt?.Co_Code ?? opt?.co_code ?? "").trim();
+  const id = opt?.CO_Id ?? opt?.Co_Id ?? opt?.co_id;
+  return {
+    CO_Id: id,
+    CO_Name: [name, code ? `(${code})` : ""].filter(Boolean).join(" "),
+  };
 };
 
 export const BasicAndAdmissionDetails = (_props: Props) => {
@@ -67,14 +94,14 @@ export const BasicAndAdmissionDetails = (_props: Props) => {
     enabled: !!user?.org_id,
   });
 
+  const coBranchId = Number(selectedBranchId || user?.branch_id || 0);
+
   const { data: coData, isLoading: coLoading } = useQuery({
-    queryKey: ["coList", user?.org_id, selectedBranchId || user?.branch_id],
+    queryKey: ["groupAdmissionCoList", user?.org_id, coBranchId],
     queryFn: () =>
-      masterService.getCoList(
-        user?.org_id as number,
-        Number(selectedBranchId || user?.branch_id),
-      ),
-    enabled: !!user?.org_id && !!(selectedBranchId || user?.branch_id),
+      masterService.getCoList(user?.org_id as number, coBranchId),
+    enabled: !!user?.org_id && coBranchId > 0,
+    staleTime: 0,
   });
 
   const branchOptions = extractList(branchData);
@@ -83,16 +110,23 @@ export const BasicAndAdmissionDetails = (_props: Props) => {
     label: opt.Option_Name || opt.Opt_Description || opt.Opt_Desc || "",
     value: opt.Id ?? opt.Opt_Code ?? opt.id,
   }));
-  const coOptions = extractList(coData)
-    .map((opt: any) => ({
-      label: `${opt.CO_Name || opt.Co_Name || ""} (${opt.CO_Code || opt.Co_Code || ""})`.trim(),
-      value: opt.CO_Id ?? opt.Co_Id ?? opt.co_id,
-    }))
-    .filter((opt: any) => opt.value !== undefined && opt.value !== null && opt.value !== "");
+  const coOptions = useMemo(
+    () =>
+      extractList(coData)
+        .map(toCoOption)
+        .filter(
+          (opt) =>
+            opt.CO_Name !== "" &&
+            opt.CO_Id !== undefined &&
+            opt.CO_Id !== null &&
+            opt.CO_Id !== "",
+        ),
+    [coData],
+  );
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-      <div className="bg-primary/5 px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+    <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+      <div className="bg-primary/5 px-6 py-4 border-b border-gray-100 flex items-center gap-3 rounded-t-xl">
         <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
           <Users size={18} />
         </div>
@@ -130,7 +164,10 @@ export const BasicAndAdmissionDetails = (_props: Props) => {
                 ? true
                 : "Select branch is required",
           }}
-          onChange={() => setValue("area_vill", "")}
+          onChange={() => {
+            setValue("area_vill", "");
+            setValue("co_id", "");
+          }}
         />
 
         <DropdownField
@@ -198,12 +235,20 @@ export const BasicAndAdmissionDetails = (_props: Props) => {
           name="co_id"
           label="Admitted By"
           options={coOptions}
-          optionLabelKey="label"
-          optionValueKey="value"
+          optionLabelKey="CO_Name"
+          optionValueKey="CO_Id"
           isSearch={true}
           isRequired={true}
+          disableSorting
           loading={coLoading}
-          placeholder="Select CO / Sahayika"
+          disabled={!coBranchId}
+          placeholder={
+            !coBranchId
+              ? "Select branch first"
+              : coOptions.length
+                ? "Select CO / Sahayika"
+                : "No CO found"
+          }
         />
 
         <DatePicker

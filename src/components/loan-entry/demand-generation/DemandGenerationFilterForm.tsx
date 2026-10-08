@@ -5,6 +5,7 @@ import { ClipboardList, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import DropdownField from "@/common/formFields/DropdownField";
+import { DatePicker } from "@/common/formFields/DatePicker";
 import {
   DemandGenerationForm,
   SelectOption,
@@ -35,7 +36,17 @@ export function DemandGenerationFilterForm({
 }: FilterFormProps) {
   const selectedCoId = form.watch("co_id");
   const selectedGroupId = form.watch("group_id");
-  const canGenerate = !!selectedCoId && !!selectedGroupId && !generating;
+  const demandDate = form.watch("demand_date");
+  const sahayikaSelected =
+    selectedCoId !== "" &&
+    selectedCoId !== null &&
+    selectedCoId !== undefined;
+  const groupSelected =
+    selectedGroupId !== "" &&
+    selectedGroupId !== null &&
+    selectedGroupId !== undefined;
+  const canGenerate =
+    !!demandDate && sahayikaSelected && groupSelected && !generating;
 
   return (
     <Form {...form}>
@@ -43,7 +54,18 @@ export function DemandGenerationFilterForm({
         onSubmit={form.handleSubmit(onGenerate)}
         className="space-y-4"
       >
-        <div className="form-grid xl:grid-cols-2">
+        <div className="form-grid">
+          <DatePicker
+            control={form.control}
+            name="demand_date"
+            label="Demand Date"
+            placeholder="dd/mm/yyyy"
+            dateFormat="dd/MM/yyyy"
+            isRequired
+            showCurrentDate
+            onChange={() => onSelectionChange()}
+          />
+
           <DropdownField
             control={form.control}
             name="co_id"
@@ -59,6 +81,7 @@ export function DemandGenerationFilterForm({
               form.setValue("group_id", "");
               onSelectionChange();
             }}
+            sortValue="value"
           />
 
           <DropdownField
@@ -70,10 +93,10 @@ export function DemandGenerationFilterForm({
             optionValueKey="value"
             isSearch
             isRequired
-            loading={!!selectedCoId && groupLoading}
-            disabled={!selectedCoId}
+            loading={sahayikaSelected && groupLoading}
+            disabled={!sahayikaSelected}
             placeholder={
-              selectedCoId
+              sahayikaSelected
                 ? groupOptions.length
                   ? "Select group"
                   : "No groups for this Sahayika"

@@ -23,6 +23,32 @@ import * as yup from "yup";
 import { AppDispatch, RootState } from "@/redux/store";
 import { format, isValid } from "date-fns";
 
+const COLLECTION_DAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+
+const toCollectionDay = (value: unknown) => {
+  if (value === null || value === undefined) return "";
+  const text = String(value).trim();
+  if (!text || text.toLowerCase() === "null") return "";
+  const dayNumber = Number(text);
+  if (
+    Number.isInteger(dayNumber) &&
+    dayNumber >= 1 &&
+    dayNumber <= 7 &&
+    String(dayNumber) === text
+  ) {
+    return COLLECTION_DAYS[dayNumber - 1];
+  }
+  return text;
+};
+
 const toDbDate = (value: any) => {
   if (!value) return "";
   if (typeof value === "string" && /^\d{4}-\d{2}-\d{2}/.test(value)) {
@@ -94,7 +120,11 @@ const schema = yup.object().shape({
     otherwise: (schema) => schema.nullable().notRequired(),
   }),
   grp_type: yup.number().transform((value) => (Number.isNaN(value) ? undefined : value)).required("Group type is required"),
-  collection_day: yup.number().transform((value) => (Number.isNaN(value) ? undefined : value)).required("Group collection day is required"),
+  collection_day: yup
+    .string()
+    .trim()
+    .max(45, "Collection day must not be greater than 45 characters.")
+    .required("Group collection day is required"),
   co_id: yup.number().transform((value) => (Number.isNaN(value) ? undefined : value)).required("CO is required"),
   adm_date: yup.string().required("Admission date is required"),
   adm_amt: yup.number().transform((value) => (Number.isNaN(value) ? undefined : value)).required("Admission fee is required"),
@@ -161,7 +191,8 @@ export const useGroupAdmissionHook = () => {
       const admAmt =
         groupFee !== ""
           ? groupFee
-          : data.Admission_Fee ??
+          :             data.Admission_Fee ??
+            data.Adm_Amount ??
             data.Adm_Amt ??
             data.AdmAmt ??
             data.Adm_Fee ??
@@ -182,19 +213,17 @@ export const useGroupAdmissionHook = () => {
         area_vill: data.Vill_Area ?? data.Area_Vill ?? "",
         mem_no: data.Mem_No ?? data.mem_no ?? "",
         grp_type: data.Group_Type ?? data.Grp_Type ?? "",
-        collection_day: (() => {
-          const day =
-            data.Collection_Day ?? data.collection_day ?? data.Coll_Day;
-          return day === "" || day === undefined || day === null
-            ? ""
-            : Number(day);
-        })(),
+        collection_day: toCollectionDay(
+          data.Collection_Day ?? data.collection_day ?? data.Coll_Day,
+        ),
         co_id: data.CO_Id ?? data.Co_Id ?? "",
         adm_amt: admAmt === "" || admAmt === undefined || admAmt === null ? "" : Number(admAmt),
         grp_sts: data.Status ?? data.Grp_Sts ?? "",
         remarks: data.Remarks ?? "",
         adm_date: data.Adm_Date ? toDbDate(data.Adm_Date) : "",
-        with_date: data.Withdrwan_Date ? new Date(data.Withdrwan_Date).toISOString().split("T")[0] : "",
+        with_date: data.Withd_Date || data.Withdrwan_Date
+          ? toDbDate(data.Withd_Date || data.Withdrwan_Date)
+          : "",
         txn_mode: "Cash",
       };
 
@@ -228,13 +257,15 @@ export const useGroupAdmissionHook = () => {
         area_vill: Number(data.area_vill),
         mem_no: data.mem_no ? Number(data.mem_no) : undefined,
         grp_type: Number(data.grp_type),
-        collection_day: Number(data.collection_day),
         co_id: Number(data.co_id),
         adm_date: toDbDate(data.adm_date),
         adm_amt: Number(data.adm_amt),
         branch_id: Number(data.branch_id),
         org_id: user?.org_id as number,
       };
+
+      const collectionDay = toCollectionDay(data.collection_day);
+      if (collectionDay) payload.collection_day = collectionDay;
 
       if (state.editMode) {
         payload.grp_id = data.grp_id;
@@ -243,22 +274,45 @@ export const useGroupAdmissionHook = () => {
         if (data.remarks) payload.remarks = data.remarks;
         return await updateGroupAPI(payload);
       } else {
-        payload.grp_sts = 1;
+        payload.trans_mode = data.txn_mode === "Bank" ? 2 : 1;
         if (data.txn_mode === "Bank") {
           payload.bank_id = data.bank_id ? Number(data.bank_id) : undefined;
           payload.bank_ref = data.bank_ref;
-        } else {
-          payload.bank_id = 0;
         }
         return await addGroupAPI(payload);
       }
     },
-    onSuccess: () => {
-      toast.success(`Group ${state.editMode ? "updated" : "added"} successfully!`);
+    onSuccess: (response) => {
+      const message = String(response?.message || "");
+      const details = response?.details;
+      if (/error/i.test(message)) {
+        toast.error(
+          typeof details === "string" && details
+            ? details
+            : message || "Operation failed. Please try again.",
+        );
+        return;
+      }
+      toast.success(
+        typeof details === "string" && details
+          ? details
+          : `Group ${state.editMode ? "updated" : "added"} successfully!`,
+      );
       handleResetFlow();
     },
     onError: (error: any) => {
-      toast.error(error?.response?.data?.message || "Operation failed. Please try again.");
+      const details = error?.response?.data?.details;
+      const detailText =
+        typeof details === "string"
+          ? details
+          : details && typeof details === "object"
+            ? Object.values(details).flat().filter(Boolean).join(" ")
+            : "";
+      toast.error(
+        detailText ||
+          error?.response?.data?.message ||
+          "Operation failed. Please try again.",
+      );
     },
   });
 

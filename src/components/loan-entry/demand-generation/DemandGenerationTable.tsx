@@ -29,7 +29,10 @@ export function formatDemandAmount(value: string | number) {
   }).format(amount);
 }
 
-const sumAmount = (rows: DemandRow[], key: "loanAmount" | "outstanding" | "demand") =>
+const sumAmount = (
+  rows: DemandRow[],
+  key: "currentDemand" | "arrearDemand" | "totalDemand" | "outstanding",
+) =>
   rows.reduce((total, row) => {
     const amount = Number(row[key]);
     return total + (Number.isNaN(amount) ? 0 : amount);
@@ -70,9 +73,10 @@ export function DemandGenerationTable({
   const canPreviousPage = safePageIndex > 0;
   const canNextPage = safePageIndex < pageCount - 1;
   const totals = {
-    loanAmount: sumAmount(data, "loanAmount"),
+    currentDemand: sumAmount(data, "currentDemand"),
+    arrearDemand: sumAmount(data, "arrearDemand"),
+    totalDemand: sumAmount(data, "totalDemand"),
     outstanding: sumAmount(data, "outstanding"),
-    demand: sumAmount(data, "demand"),
   };
 
   return (
@@ -86,7 +90,10 @@ export function DemandGenerationTable({
           <>
             <div className="md:hidden divide-y divide-gray-100">
               {pageRows.map((row) => (
-                <article key={`${row.sl}-${row.memberNo}`} className="p-4 space-y-3">
+                <article
+                  key={`${row.sl}-${row.memberNo}-${row.accountLabel}`}
+                  className="p-4 space-y-3"
+                >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
@@ -104,20 +111,39 @@ export function DemandGenerationTable({
                     </div>
                     <div className="text-right shrink-0">
                       <p className="text-[11px] font-semibold uppercase text-gray-400">
-                        Demand
+                        Total Demand
                       </p>
                       <p className="font-bold text-primary">
-                        {formatDemandAmount(row.demand)}
+                        {formatDemandAmount(row.totalDemand)}
                       </p>
                     </div>
                   </div>
                   <dl className="grid grid-cols-2 gap-3 text-sm">
                     <div>
                       <dt className="text-gray-400 text-xs font-semibold uppercase">
-                        Loan Amount
+                        Loan Account
                       </dt>
                       <dd className="font-semibold text-gray-700">
-                        {formatDemandAmount(row.loanAmount)}
+                        {row.accountLabel || "—"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-400 text-xs font-semibold uppercase">
+                        Installment
+                      </dt>
+                      <dd className="font-semibold text-gray-700">
+                        {row.installmentNo || "—"}
+                        {Number(row.installmentAmount) > 0
+                          ? ` · ${formatDemandAmount(row.installmentAmount)}`
+                          : ""}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-400 text-xs font-semibold uppercase">
+                        Due Date
+                      </dt>
+                      <dd className="font-semibold text-gray-700">
+                        {row.dueDate || "—"}
                       </dd>
                     </div>
                     <div>
@@ -128,70 +154,108 @@ export function DemandGenerationTable({
                         {formatDemandAmount(row.outstanding)}
                       </dd>
                     </div>
+                    <div>
+                      <dt className="text-gray-400 text-xs font-semibold uppercase">
+                        Current
+                      </dt>
+                      <dd className="font-semibold text-gray-700">
+                        {formatDemandAmount(row.currentDemand)}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-gray-400 text-xs font-semibold uppercase">
+                        Arrear
+                      </dt>
+                      <dd className="font-semibold text-gray-700">
+                        {formatDemandAmount(row.arrearDemand)}
+                      </dd>
+                    </div>
                   </dl>
                 </article>
               ))}
               <div className="bg-slate-50 px-4 py-3 flex items-center justify-between gap-3">
                 <span className="text-sm font-bold text-gray-700">Total Demand</span>
                 <span className="text-sm font-bold text-primary">
-                  {formatDemandAmount(totals.demand)}
+                  {formatDemandAmount(totals.totalDemand)}
                 </span>
               </div>
             </div>
 
             <div className="hidden md:block w-full overflow-x-auto">
-              <table className="w-full text-left border-collapse text-sm min-w-[860px]">
+              <table className="w-full text-left border-collapse text-sm min-w-[1100px]">
                 <thead className="bg-primary">
                   <tr>
                     <th className="px-4 h-12 text-[13px] font-bold text-primary-foreground uppercase tracking-wider w-14 text-center">
                       Sl
                     </th>
+                    <th className="px-4 h-12 text-[13px] font-bold text-primary-foreground uppercase tracking-wider">
+                      Member
+                    </th>
                     <th className="px-4 h-12 text-[13px] font-bold text-primary-foreground uppercase tracking-wider whitespace-nowrap">
-                      Member No
+                      Loan Account
                     </th>
-                    <th className="px-4 h-12 text-[13px] font-bold text-primary-foreground uppercase tracking-wider">
-                      Member Name
+                    <th className="px-4 h-12 text-[13px] font-bold text-primary-foreground uppercase tracking-wider whitespace-nowrap">
+                      Installment
                     </th>
-                    <th className="px-4 h-12 text-[13px] font-bold text-primary-foreground uppercase tracking-wider">
-                      Father / Husband
+                    <th className="px-4 h-12 text-[13px] font-bold text-primary-foreground uppercase tracking-wider whitespace-nowrap">
+                      Due Date
                     </th>
                     <th className="px-4 h-12 text-[13px] font-bold text-primary-foreground uppercase tracking-wider text-right">
-                      Loan Amount
+                      Current Demand
+                    </th>
+                    <th className="px-4 h-12 text-[13px] font-bold text-primary-foreground uppercase tracking-wider text-right">
+                      Arrear
+                    </th>
+                    <th className="px-4 h-12 text-[13px] font-bold text-primary-foreground uppercase tracking-wider text-right">
+                      Total Demand
                     </th>
                     <th className="px-4 h-12 text-[13px] font-bold text-primary-foreground uppercase tracking-wider text-right">
                       Outstanding
-                    </th>
-                    <th className="px-4 h-12 text-[13px] font-bold text-primary-foreground uppercase tracking-wider text-right">
-                      Demand
                     </th>
                   </tr>
                 </thead>
                 <tbody>
                   {pageRows.map((row) => (
                     <tr
-                      key={`${row.sl}-${row.memberNo}`}
+                      key={`${row.sl}-${row.memberNo}-${row.accountLabel}`}
                       className="border-b border-gray-100 last:border-0 hover:bg-slate-50/80 transition-colors"
                     >
                       <td className="px-4 py-3.5 text-center text-gray-600 font-semibold">
                         {row.sl}
                       </td>
+                      <td className="px-4 py-3.5">
+                        <p className="font-semibold text-primary">
+                          {row.memberName || "—"}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          {[row.memberNo, row.guardianName].filter(Boolean).join(" · ") || "—"}
+                        </p>
+                      </td>
                       <td className="px-4 py-3.5 whitespace-nowrap text-gray-700">
-                        {row.memberNo || "—"}
+                        {row.accountLabel || "—"}
                       </td>
-                      <td className="px-4 py-3.5 font-semibold text-primary">
-                        {row.memberName || "—"}
+                      <td className="px-4 py-3.5 whitespace-nowrap text-gray-700">
+                        <p>{row.installmentNo || "—"}</p>
+                        {Number(row.installmentAmount) > 0 ? (
+                          <p className="text-xs text-gray-500">
+                            {formatDemandAmount(row.installmentAmount)}
+                          </p>
+                        ) : null}
                       </td>
-                      <td className="px-4 py-3.5 text-gray-700">
-                        {row.guardianName || "—"}
+                      <td className="px-4 py-3.5 whitespace-nowrap text-gray-700">
+                        {row.dueDate || "—"}
                       </td>
                       <td className="px-4 py-3.5 text-right font-semibold text-gray-700 whitespace-nowrap">
-                        {formatDemandAmount(row.loanAmount)}
+                        {formatDemandAmount(row.currentDemand)}
+                      </td>
+                      <td className="px-4 py-3.5 text-right font-semibold text-gray-700 whitespace-nowrap">
+                        {formatDemandAmount(row.arrearDemand)}
+                      </td>
+                      <td className="px-4 py-3.5 text-right font-bold text-primary whitespace-nowrap">
+                        {formatDemandAmount(row.totalDemand)}
                       </td>
                       <td className="px-4 py-3.5 text-right font-semibold text-gray-700 whitespace-nowrap">
                         {formatDemandAmount(row.outstanding)}
-                      </td>
-                      <td className="px-4 py-3.5 text-right font-bold text-primary whitespace-nowrap">
-                        {formatDemandAmount(row.demand)}
                       </td>
                     </tr>
                   ))}
@@ -199,19 +263,22 @@ export function DemandGenerationTable({
                 <tfoot>
                   <tr className="bg-slate-50 border-t border-gray-200">
                     <td
-                      colSpan={4}
+                      colSpan={5}
                       className="px-4 py-3.5 text-sm font-bold text-gray-700"
                     >
                       Total ({data.length})
                     </td>
                     <td className="px-4 py-3.5 text-right font-bold text-gray-800 whitespace-nowrap">
-                      {formatDemandAmount(totals.loanAmount)}
+                      {formatDemandAmount(totals.currentDemand)}
+                    </td>
+                    <td className="px-4 py-3.5 text-right font-bold text-gray-800 whitespace-nowrap">
+                      {formatDemandAmount(totals.arrearDemand)}
+                    </td>
+                    <td className="px-4 py-3.5 text-right font-bold text-primary whitespace-nowrap">
+                      {formatDemandAmount(totals.totalDemand)}
                     </td>
                     <td className="px-4 py-3.5 text-right font-bold text-gray-800 whitespace-nowrap">
                       {formatDemandAmount(totals.outstanding)}
-                    </td>
-                    <td className="px-4 py-3.5 text-right font-bold text-primary whitespace-nowrap">
-                      {formatDemandAmount(totals.demand)}
                     </td>
                   </tr>
                 </tfoot>

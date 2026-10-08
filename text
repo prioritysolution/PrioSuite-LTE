@@ -1,0 +1,273 @@
+# MIS Report → CO Performance — Frontend API & UI Guide
+
+Menu: **MIS Report → CO Performance**
+
+Compares the field officers (**CO / Sahayika**) for a period (**From date – To date**): outreach, disbursement, portfolio, collection efficiency and portfolio at risk (PAR). Each Sahayika gets a grade and a rank. Drill down to the groups of a Sahayika, and see a month-wise trend. Read-only screen.
+
+| Purpose | Method | URL |
+|---|---|---|
+| Branch dropdown (head office only) | GET | `/api/Org/ProcessMaster/GetBranchList` (existing) |
+| Sahayika dropdown (optional filter) | GET | `/api/Org/ProcessLoan/GetSahayikaList` (existing) |
+| **CO Performance** | GET | `/api/Org/MisReport/CoPerformance` |
+
+Needs the Sanctum token (`Authorization: Bearer <token>`) and `Accept: application/json` / `Content-Type: application/json`, the same as other APIs.
+
+---
+
+## How the figures are calculated
+
+A loan belongs to the Sahayika of the **loan**, else of its **group**, else of the **member**; otherwise it is **Not Assigned** (same rule as Demand Generation and Demand vs Collection). Demand / collection / overdue figures are exactly the same as in the *Demand vs Collection* report for the same filters.
+
+| Block | Field | Meaning |
+|---|---|---|
+| Outreach | `Active_Loan_Count` | Loans with outstanding > 0 at *To* |
+| | `Active_Member_Count`, `Active_Group_Count` | Borrowers / groups having an active loan |
+| | `New_Group_Count` | Groups admitted (`Adm_Date`) in the period |
+| | `New_Member_Count` | Members admitted (`Admission_Date`) in the period |
+| Disbursement | `Disb_Count`, `Disb_Amount` | Loans disbursed in the period (loan amount) |
+| | `Avg_Loan_Size` | `Disb_Amount ÷ Disb_Count` (`null` when no disbursement) |
+| Portfolio | `Opening_Outstanding` | Loan balance before *From* (realisable − collected) |
+| | `Outstanding` | Loan balance at *To* |
+| | `Closed_Loan_Count` | Loans fully repaid during the period |
+| Collection | `Arrear_Demand`, `Current_Demand` | Overdue at *From*; installments due in the period |
+| | `Net_Demand` | Arrear + Current − advance already paid |
+| | `Coll_Against_Demand` | Collection that cleared demand (arrear + current) |
+| | `Coll_Advance` | Collected beyond the demand |
+| | `Coll_Amount` | Total collected in the period |
+| | `Coll_Pct` | `Coll_Against_Demand ÷ Net_Demand × 100` (`null` when no demand) |
+| | `Overdue_Amount`, `Overdue_Account_Count` | Unpaid demand at *To* and number of such loans |
+| Risk | `PAR_Amount` | **Outstanding** of all loans that have any overdue at *To* |
+| | `PAR_Pct` | `PAR_Amount ÷ Outstanding × 100` |
+| | `PAR_0_30`, `PAR_31_60`, `PAR_61_90`, `PAR_Above_90` | `PAR_Amount` split by days since the oldest unpaid installment |
+| Rating | `Grade` | By `Coll_Pct`: **A** ≥ 95, **B** ≥ 85, **C** ≥ 70, **D** < 70. `null` when no demand |
+| | `Perf_Rank` | 1 = best. Rank by `Coll_Pct` (high first), then `PAR_Pct` (low first). `null` when no demand |
+
+Every Sahayika of the branch is listed, even with no activity (all zeros, no grade / rank). Loans without a Sahayika appear as a **Not Assigned** row (`Key_Id = 0`) per branch.
+
+**Branch rule**
+- Head office user: All Branches or any single branch via `report_branch_id`.
+- Branch user: always their own branch; `report_branch_id` is ignored.
+
+---
+
+## API
+
+`GET /api/Org/MisReport/CoPerformance`
+
+| Param | Type | Required | Notes |
+|---|---|---|---|
+| `org_id` | int | Yes | |
+| `branch_id` | int | Yes | Logged-in branch |
+| `from_date` | date | Yes | `DD-MM-YYYY` or `YYYY-MM-DD` |
+| `to_date` | date | Yes* | Must be ≥ `from_date`. *Blank = `from_date` |
+| `report_branch_id` | int | No | Head office only. Blank / `0` = All Branches, `>0` = one branch |
+| `co_id` | int | No | Blank = all, **`0` = Not Assigned**, `>0` = one Sahayika |
+| `view` | string | No | `summary` (no rows), `sahayika` (default), `group`, `month` |
+
+Examples:
+
+```
+# Sahayika-wise for a branch
+/api/Org/MisReport/CoPerformance?org_id=1&branch_id=1&report_branch_id=2&from_date=01-03-2026&to_date=31-03-2026&view=sahayika
+# Groups of one Sahayika
+/api/Org/MisReport/CoPerformance?org_id=1&branch_id=2&from_date=01-03-2026&to_date=31-03-2026&co_id=11&view=group
+# Month-wise trend of one Sahayika
+/api/Org/MisReport/CoPerformance?org_id=1&branch_id=2&from_date=01-10-2025&to_date=31-03-2026&co_id=11&view=month
+```
+
+### Response `200`
+
+```json
+{
+  "message": "Data Found",
+  "details": {
+    "View": "sahayika",
+    "Summary": {
+      "From_Date": "2026-03-01",
+      "To_Date": "2026-03-31",
+      "Branch_Id": 2,
+      "Branch_Name": "Panskura Branch",
+      "Sahayika_Count": 2,
+      "Active_Group_Count": 30,
+      "Active_Member_Count": 310,
+      "Active_Loan_Count": 364,
+      "New_Group_Count": 0,
+      "New_Member_Count": 0,
+      "Disb_Count": 38,
+      "Disb_Amount": 774072,
+      "Avg_Loan_Size": 20370.32,
+      "Opening_Outstanding": 4360800,
+      "Outstanding": 4568250,
+      "Closed_Loan_Count": 15,
+      "Arrear_Demand": 1147375,
+      "Current_Demand": 660950,
+      "Net_Demand": 1693625,
+      "Coll_Against_Demand": 572750,
+      "Coll_Advance": 133850,
+      "Coll_Amount": 706600,
+      "Coll_Pct": 33.82,
+      "Overdue_Amount": 1120875,
+      "Overdue_Account_Count": 235,
+      "PAR_Amount": 2110900,
+      "PAR_Pct": 46.21,
+      "PAR_0_30": 1309900,
+      "PAR_31_60": 143350,
+      "PAR_61_90": 12650,
+      "PAR_Above_90": 645000,
+      "Grade": "D"
+    },
+    "Rows": [
+      {
+        "Branch_Id": 2,
+        "Branch_Name": "Panskura Branch",
+        "Key_Id": 11,
+        "Key_Name": "bbbbbb",
+        "Key_Code": "1578963",
+        "Contact_Number": null,
+        "Is_Active": 1,
+        "Active_Group_Count": 1,
+        "Active_Member_Count": 3,
+        "Active_Loan_Count": 5,
+        "New_Group_Count": 0,
+        "New_Member_Count": 0,
+        "Disb_Count": 6,
+        "Disb_Amount": 72,
+        "Avg_Loan_Size": 12,
+        "Opening_Outstanding": 70750,
+        "Outstanding": 60750,
+        "Closed_Loan_Count": 0,
+        "Arrear_Demand": 6300,
+        "Current_Demand": 8000,
+        "Net_Demand": 13000,
+        "Coll_Against_Demand": 8200,
+        "Coll_Advance": 1800,
+        "Coll_Amount": 10000,
+        "Coll_Pct": 63.08,
+        "Overdue_Amount": 4800,
+        "Overdue_Account_Count": 2,
+        "PAR_Amount": 4800,
+        "PAR_Pct": 7.9,
+        "PAR_0_30": 0,
+        "PAR_31_60": 0,
+        "PAR_61_90": 0,
+        "PAR_Above_90": 4800,
+        "Grade": "D",
+        "Perf_Rank": 1
+      },
+      { "Key_Id": 0, "Key_Name": "Not Assigned", "...": "..." }
+    ]
+  }
+}
+```
+
+No activity for the filters → `message: "No Data Found"`, `Summary` with zeros. All amounts / percentages are numbers (2 decimals), ids / counts are integers; `Coll_Pct`, `Avg_Loan_Size`, `Grade`, `Perf_Rank` may be `null`.
+
+### `Summary` (always)
+
+All metric fields from the table above, plus `From_Date`, `To_Date`, `Branch_Id` (`0` = all), `Branch_Name`, `Sahayika_Count` (active Sahayika in scope). `Grade` is the overall grade.
+
+### `Rows` for `view = sahayika` (one row per Sahayika per branch)
+
+| Field | Notes |
+|---|---|
+| `Branch_Id`, `Branch_Name` | Branch |
+| `Key_Id` | `CO_Id` (`0` = Not Assigned) — send as `co_id` to drill down |
+| `Key_Name`, `Key_Code` | Sahayika name / code |
+| `Contact_Number`, `Is_Active` | From the Sahayika master (`null` for Not Assigned) |
+| metrics | as in the table above, plus `Grade`, `Perf_Rank` |
+
+Order: branch, Sahayika code; Not Assigned last in each branch.
+
+### `Rows` for `view = group` (one row per group)
+
+Same metric fields with `Key_Id` = `Group_Id`, `Key_Name` = `Group_Name (Group_No)`, `Key_Code` = `Group_No`, plus `CO_Id` (group's Sahayika, `0` = none) and `Collection_Day`. All groups of the selected Sahayika are listed (also those without loans). `Perf_Rank` ranks groups within the result.
+
+### `Rows` for `view = month` (trend)
+
+| Field | Notes |
+|---|---|
+| `Month_Key`, `Month_Name` | `2026-03`, `Mar 2026` |
+| `Disb_Count`, `Disb_Amount` | Disbursed in the month |
+| `Demand_Amount` | Installments falling due in the month |
+| `Coll_Amount` | Collected in the month |
+| `Coll_Vs_Due_Pct` | `Coll_Amount ÷ Demand_Amount × 100` (can exceed 100 when arrears / advances are collected) |
+
+---
+
+## Errors
+
+| HTTP | `message` | When |
+|---|---|---|
+| 400 | `Invalid data send` | Validation. `details` = `{ field: [messages] }` (e.g. `to_date` before `from_date`, invalid `view`) |
+| 400 | `Error Found` | Server / database error. `details` = message |
+| 401 | `Unauthenticated.` | Missing / expired token |
+
+---
+
+## Frontend UI flow
+
+### Screen layout
+
+```
+┌──────────────────────────────────────────────────────────────────────────────────┐
+│ MIS Report › CO Performance                                          [Print] [⤓] │
+├──────────────────────────────────────────────────────────────────────────────────┤
+│ From [01-03-2026]  To [31-03-2026]  Branch [Panskura ▾]  Sahayika [All ▾]  [Show] │
+│ [This Month] [Last Month] [This Quarter] [This FY]                               │
+├──────────────────────────────────────────────────────────────────────────────────┤
+│ ┌ Active Loans ┐ ┌ Disbursed ──┐ ┌ Outstanding ┐ ┌ Coll. % ──┐ ┌ PAR % ─────┐     │
+│ │ 364          │ │ ₹7,74,072   │ │ ₹45,68,250  │ │ 33.82 % D │ │ 46.21 %    │     │
+│ │ 310 members  │ │ 38 loans    │ │ Overdue 11L │ │ ▓▓▓░░░░░  │ │ >90d 6.45L │     │
+│ └──────────────┘ └─────────────┘ └─────────────┘ └───────────┘ └────────────┘     │
+├──────────────────────────────────────────────────────────────────────────────────┤
+│ [Table] [Cards] [Trend]                                   Panskura › bbbbbb       │
+├──────────────────────────────────────────────────────────────────────────────────┤
+│ # │ Sahayika      │ Groups│Members│ Disb.   │Outstanding│ Net Dmd │ Coll. │Coll%│PAR%│Grade│
+│ 1 │ bbbbbb      › │   1   │   3   │      72 │   60,750  │ 13,000  │10,000 │ 63% │ 8% │  D  │
+│ 3 │ Not Assigned› │  29   │  307  │ 7,74,000│ 45,07,500 │16,80,625│6,96,600│ 34% │47% │  D  │
+│ - │ Santosh     › │   0   │   0   │    -    │     -     │    -    │   -   │  -  │ -  │  -  │
+│   │ TOTAL         │  30   │  310  │ 7,74,072│ 45,68,250 │16,93,625│7,06,600│ 34% │46% │  D  │
+└──────────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Step by step
+
+1. **Open the screen**
+   - Default period = current month. Quick buttons: This Month, Last Month, This Quarter, This Financial Year.
+   - **Branch**: head office user (`Is_Head = 1`) gets a dropdown from `GetBranchList` + **All Branches** (`report_branch_id = 0`); branch user sees a read-only branch label (no `report_branch_id`).
+   - **Sahayika** (optional): `GetSahayikaList` for the selected branch (includes "Not Assigned" → `co_id = 0`). Disabled while Branch = All Branches. Changing Branch resets Sahayika.
+
+2. **Show** → call with `view=sahayika` (or `group` when a Sahayika is selected in the filter). Loader on cards and table; disable **Show** while loading. All Branches over a long period can take a few seconds.
+
+3. **KPI cards** (from `Summary`)
+   - **Active Loans** `Active_Loan_Count`, sub-text "`Active_Member_Count` members · `Active_Group_Count` groups".
+   - **Disbursed** `Disb_Amount`, sub-text "`Disb_Count` loans · avg `Avg_Loan_Size`".
+   - **Outstanding** `Outstanding`, sub-text "Overdue `Overdue_Amount`".
+   - **Coll. %** `Coll_Pct` with progress bar and the `Grade` badge.
+   - **PAR %** `PAR_Pct`, sub-text "> 90 days `PAR_Above_90`".
+   - Optional small line: "New groups `New_Group_Count` · New members `New_Member_Count` · Closed loans `Closed_Loan_Count`".
+
+4. **Table view (default)** — one row per Sahayika
+   - Columns: Rank | Sahayika (name + code, contact on hover) | Groups | Members | Loans | Disbursed | Outstanding | Net Demand | Collection | Coll. % | Overdue | PAR % | Grade.
+   - Column chooser for the rest: New Groups, New Members, Closed Loans, Opening Outstanding, Arrear / Current Demand, Advance, PAR buckets.
+   - Footer **TOTAL** row from `Summary` (do not add up rows in the UI).
+   - Badges: `Grade` A green, B light green, C amber, D red, `null` grey "–". `Coll_Pct` / `PAR_Pct` coloured (PAR: ≤ 5 % green, 5–10 % amber, > 10 % red).
+   - Default sort by `Perf_Rank` (rows without rank at the end); all columns sortable client-side.
+   - Rows with no activity (zeros) shown muted; optional toggle "Hide inactive Sahayika".
+   - With All Branches, group rows under a branch header (`Branch_Name`).
+
+5. **Cards view (optional)** — a leaderboard: one card per Sahayika with rank medal (1–3), name, Grade, Coll. % ring, Outstanding, PAR %, Disbursed. Same data as the table.
+
+6. **Drill-down**: click a Sahayika row → call with `co_id = Key_Id` (and `report_branch_id = Branch_Id` for head office) and `view=group`. Breadcrumb "Branch › Sahayika". The group table shows the same columns (Rank, Group, Collection Day, Members, Loans, …). From a group row, optionally open the *Demand vs Collection* report with `view=member&group_id=<Key_Id>` for member-level detail.
+
+7. **Trend tab**: call with the same filters and `view=month` (works for all Sahayika or one). Combo chart: bars `Disb_Amount`, bars `Demand_Amount` vs `Coll_Amount`, line `Coll_Vs_Due_Pct`. Tip: choose a longer period (e.g. This FY) for a useful trend.
+
+8. **PAR breakdown (optional)**: on row expand or a popover, a stacked bar of `PAR_0_30`, `PAR_31_60`, `PAR_61_90`, `PAR_Above_90`.
+
+9. **Empty state**: `message = "No Data Found"` → "No loan activity for the selected period." (Sahayika rows may still be listed with zeros.)
+
+10. **Errors**: 400 `Invalid data send` → messages under the date fields; `Error Found` → toast with `details`.
+
+11. **Print / Export**: header with org name, "CO Performance", branch / Sahayika, period, print date; the table with TOTAL row and grade legend (A ≥ 95 %, B ≥ 85 %, C ≥ 70 %, D < 70 %); signature line *Prepared by · Checked by · Branch Manager*. Excel export from `Rows` + `Summary`.
+
+

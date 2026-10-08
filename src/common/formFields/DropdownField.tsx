@@ -172,7 +172,7 @@ const DropdownField = <T extends FieldValues>({
       const bLabel = b[optionLabelKey]?.toLowerCase() ?? "";
       return aLabel.localeCompare(bLabel);
     });
-  }, [options, optionLabelKey, disableSorting, sortValue]);
+  }, [options, optionLabelKey, optionValueKey, disableSorting, sortValue]);
 
   const filteredOptions = useMemo(() => {
     if (isSearching) {
@@ -230,6 +230,7 @@ const DropdownField = <T extends FieldValues>({
     if (!open) {
       setSearchVal(getDisplayLabel(value));
     } else {
+      setSearchVal("");
       const timer = setTimeout(() => {
         inputRef.current?.focus();
       }, 50);

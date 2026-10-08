@@ -11,9 +11,13 @@ interface DemandGenerationPrintProps {
   sahayikaName: string;
   groupName: string;
   branchName: string;
+  demandDate: string;
 }
 
-const sumAmount = (rows: DemandRow[], key: "loanAmount" | "outstanding" | "demand") =>
+const sumAmount = (
+  rows: DemandRow[],
+  key: "currentDemand" | "arrearDemand" | "totalDemand" | "outstanding",
+) =>
   rows.reduce((total, row) => {
     const amount = Number(row[key]);
     return total + (Number.isNaN(amount) ? 0 : amount);
@@ -25,6 +29,7 @@ const DemandGenerationPrint = ({
   sahayikaName,
   groupName,
   branchName,
+  demandDate,
 }: DemandGenerationPrintProps) => {
   const [userName, setUserName] = useState("");
   const [orgName, setOrgName] = useState("");
@@ -45,21 +50,32 @@ const DemandGenerationPrint = ({
     );
   }, []);
 
-  const colSpan = 7;
+  const colSpan = 9;
 
   return (
     <div
       ref={printRef}
-      className="hidden print:block w-[297mm] mx-auto p-6 text-black bg-white text-xs print-area"
+      className="hidden print:block w-full m-0 p-0 text-black bg-white text-xs print-area"
     >
       <style
         dangerouslySetInnerHTML={{
           __html: `
         @media print {
-          @page { size: A4 landscape; margin: 10mm; }
+          html, body { margin: 0 !important; padding: 0 !important; }
+          @page { size: A4 landscape; margin: 5mm 5mm 12mm 5mm; }
           table { display: table !important; width: 100% !important; border-collapse: collapse !important; }
           thead { display: table-header-group !important; }
           tr { page-break-inside: avoid !important; }
+          .demand-print-footer {
+            position: fixed;
+            bottom: 3mm;
+            left: 5mm;
+            right: 5mm;
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #475569;
+          }
         }
       `,
         }}
@@ -84,9 +100,12 @@ const DemandGenerationPrint = ({
           </tr>
           <tr className="text-[13px]">
             <td colSpan={3} className="border border-black p-3 text-left">
+              <span className="font-bold">Demand Date:</span> {demandDate || "—"}
+            </td>
+            <td colSpan={3} className="border border-black p-3 text-left">
               <span className="font-bold">Sahayika:</span> {sahayikaName || "—"}
             </td>
-            <td colSpan={4} className="border border-black p-3 text-left">
+            <td colSpan={3} className="border border-black p-3 text-left">
               <span className="font-bold">Group:</span> {groupName || "—"}
             </td>
           </tr>
@@ -95,50 +114,62 @@ const DemandGenerationPrint = ({
           </tr>
           <tr className="bg-slate-100 font-bold">
             <th className="border border-black p-2 w-[40px]">Sl.</th>
-            <th className="border border-black p-2">Member No</th>
-            <th className="border border-black p-2 text-left">Member Name</th>
-            <th className="border border-black p-2 text-left">Father / Husband</th>
-            <th className="border border-black p-2 text-right">Loan Amount</th>
+            <th className="border border-black p-2 text-left">Member</th>
+            <th className="border border-black p-2">Loan Account</th>
+            <th className="border border-black p-2">Installment</th>
+            <th className="border border-black p-2">Due Date</th>
+            <th className="border border-black p-2 text-right">Current</th>
+            <th className="border border-black p-2 text-right">Arrear</th>
+            <th className="border border-black p-2 text-right">Total Demand</th>
             <th className="border border-black p-2 text-right">Outstanding</th>
-            <th className="border border-black p-2 text-right">Demand</th>
           </tr>
         </thead>
         <tbody>
           {rows.map((row) => (
-            <tr key={`${row.sl}-${row.memberNo}`}>
+            <tr key={`${row.sl}-${row.memberNo}-${row.accountLabel}`}>
               <td className="border border-black p-2">{row.sl}</td>
-              <td className="border border-black p-2">{row.memberNo || "-"}</td>
-              <td className="border border-black p-2 text-left">{row.memberName || "-"}</td>
-              <td className="border border-black p-2 text-left">{row.guardianName || "-"}</td>
+              <td className="border border-black p-2 text-left">
+                {row.memberName || "-"}
+                {row.memberNo ? ` (${row.memberNo})` : ""}
+              </td>
+              <td className="border border-black p-2">{row.accountLabel || "-"}</td>
+              <td className="border border-black p-2">{row.installmentNo || "-"}</td>
+              <td className="border border-black p-2">{row.dueDate || "-"}</td>
               <td className="border border-black p-2 text-right">
-                {formatDemandAmount(row.loanAmount)}
+                {formatDemandAmount(row.currentDemand)}
+              </td>
+              <td className="border border-black p-2 text-right">
+                {formatDemandAmount(row.arrearDemand)}
+              </td>
+              <td className="border border-black p-2 text-right">
+                {formatDemandAmount(row.totalDemand)}
               </td>
               <td className="border border-black p-2 text-right">
                 {formatDemandAmount(row.outstanding)}
               </td>
-              <td className="border border-black p-2 text-right">
-                {formatDemandAmount(row.demand)}
-              </td>
             </tr>
           ))}
           <tr className="font-bold">
-            <td colSpan={4} className="border border-black p-2 text-left">
+            <td colSpan={5} className="border border-black p-2 text-left">
               Total ({rows.length})
             </td>
             <td className="border border-black p-2 text-right">
-              {formatDemandAmount(sumAmount(rows, "loanAmount"))}
+              {formatDemandAmount(sumAmount(rows, "currentDemand"))}
+            </td>
+            <td className="border border-black p-2 text-right">
+              {formatDemandAmount(sumAmount(rows, "arrearDemand"))}
+            </td>
+            <td className="border border-black p-2 text-right">
+              {formatDemandAmount(sumAmount(rows, "totalDemand"))}
             </td>
             <td className="border border-black p-2 text-right">
               {formatDemandAmount(sumAmount(rows, "outstanding"))}
-            </td>
-            <td className="border border-black p-2 text-right">
-              {formatDemandAmount(sumAmount(rows, "demand"))}
             </td>
           </tr>
         </tbody>
       </table>
 
-      <div className="mt-4 flex justify-between text-[11px] text-slate-600">
+      <div className="demand-print-footer flex justify-between text-[11px] text-slate-600">
         <span>Printed by: {userName || "-"}</span>
         <span>{printedAt}</span>
       </div>

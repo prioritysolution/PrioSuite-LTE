@@ -1,6 +1,7 @@
 import { UseFormReturn } from "react-hook-form";
 
 export interface DemandGenerationForm {
+  demand_date: Date | null;
   co_id: number | "";
   group_id: number | "";
 }
@@ -10,9 +11,14 @@ export interface DemandRow {
   memberNo: string;
   memberName: string;
   guardianName: string;
-  loanAmount: string | number;
+  accountLabel: string;
+  installmentNo: string;
+  installmentAmount: string | number;
+  dueDate: string;
+  currentDemand: string | number;
+  arrearDemand: string | number;
+  totalDemand: string | number;
   outstanding: string | number;
-  demand: string | number;
 }
 
 export interface SelectOption {
@@ -36,4 +42,7 @@ export interface DemandGenerationProps {
   onGenerate: (values: DemandGenerationForm) => void;
   onReset: () => void;
   onSelectionChange: () => void;
+  regenerateOpen: boolean;
+  onConfirmRegenerate: () => void;
+  onCancelRegenerate: () => void;
 }

@@ -13,7 +13,10 @@ import {
 } from "@/components/ui/table";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import type { LoanRowMeta } from "@/container/loan-entry/loan-collection/LoanCollectionType";
+import type {
+  LoanRowMeta,
+  SelectedLoan,
+} from "@/container/loan-entry/loan-collection/LoanCollectionType";
 
 export interface MemberRow {
   Member_Id: string | number;
@@ -34,6 +37,7 @@ export interface MemberRow {
 interface MemberDetailsSectionProps {
   members: any[];
   selectedMemberId: string | number;
+  selectedLoans?: SelectedLoan[];
   selectedAccountId?: string | number | null;
   selectedLoanDate?: string | null;
   selectedLoanAmount?: string | number | null;
@@ -80,6 +84,7 @@ const pick = (row: any, keys: string[]) => {
 export const MemberDetailsSection = ({
   members,
   selectedMemberId,
+  selectedLoans = [],
   selectedAccountId = null,
   selectedLoanDate = null,
   selectedLoanAmount = null,
@@ -163,49 +168,47 @@ export const MemberDetailsSection = ({
     loanAmount: row.Loan_Amount ?? "",
   });
 
+  const loanMatches = (row: MemberRow, loan: SelectedLoan) => {
+    if (String(loan.memberId) !== String(row.Member_Id)) return false;
+    if (
+      loan.accountId !== null &&
+      loan.accountId !== undefined &&
+      loan.accountId !== "" &&
+      row.Account_Id !== null &&
+      row.Account_Id !== undefined &&
+      row.Account_Id !== ""
+    ) {
+      return String(loan.accountId) === String(row.Account_Id);
+    }
+    const sameDate =
+      !loan.loanDate ||
+      !row.Loan_Date ||
+      String(loan.loanDate).slice(0, 10) === String(row.Loan_Date).slice(0, 10);
+    const sameAmt =
+      loan.loanAmount == null ||
+      loan.loanAmount === "" ||
+      row.Loan_Amount == null ||
+      row.Loan_Amount === "" ||
+      Number(loan.loanAmount) === Number(row.Loan_Amount);
+    return sameDate && sameAmt;
+  };
+
   const isRowSelected = (row: MemberRow) => {
     const hasValidId =
       row.Member_Id !== "" &&
       row.Member_Id !== null &&
       row.Member_Id !== undefined;
-    if (
-      !hasValidId ||
-      selectedMemberId === "" ||
-      selectedMemberId == null
-    ) {
-      return false;
+    if (!hasValidId) return false;
+    if (selectedLoans.length > 0) {
+      return selectedLoans.some((loan) => loanMatches(row, loan));
     }
-    if (String(selectedMemberId) !== String(row.Member_Id)) return false;
-
-    if (
-      selectedAccountId !== null &&
-      selectedAccountId !== undefined &&
-      selectedAccountId !== "" &&
-      row.Account_Id !== null &&
-      row.Account_Id !== undefined &&
-      row.Account_Id !== ""
-    ) {
-      return String(selectedAccountId) === String(row.Account_Id);
-    }
-
-    // Fallback when Account_Id is missing: match loan date + amount
-    if (selectedLoanDate || selectedLoanAmount != null) {
-      const sameDate =
-        !selectedLoanDate ||
-        !row.Loan_Date ||
-        String(selectedLoanDate).slice(0, 10) ===
-          String(row.Loan_Date).slice(0, 10) ||
-        String(selectedLoanDate) === String(row.Loan_Date);
-      const sameAmt =
-        selectedLoanAmount == null ||
-        selectedLoanAmount === "" ||
-        row.Loan_Amount == null ||
-        row.Loan_Amount === "" ||
-        Number(selectedLoanAmount) === Number(row.Loan_Amount);
-      return sameDate && sameAmt;
-    }
-
-    return true;
+    if (selectedMemberId === "" || selectedMemberId == null) return false;
+    return loanMatches(row, {
+      memberId: selectedMemberId,
+      accountId: selectedAccountId,
+      loanDate: selectedLoanDate,
+      loanAmount: selectedLoanAmount,
+    });
   };
 
   return (
@@ -220,8 +223,7 @@ export const MemberDetailsSection = ({
               Member Details
             </h3>
             <p className="text-xs text-gray-500 font-medium mt-0.5">
-              Select any one member for collection using the Collection
-              checkbox
+              Select one or more members using the Collection checkbox
             </p>
           </div>
         </div>
@@ -304,10 +306,9 @@ export const MemberDetailsSection = ({
                           )}
                           onClick={() => {
                             if (!hasValidId) return;
-                            // Clicking another row selects that member (exclusive)
                             onToggleCollection(
                               row.Member_Id,
-                              true,
+                              !isChecked,
                               toRowMeta(row),
                             );
                           }}
@@ -410,7 +411,7 @@ export const MemberDetailsSection = ({
                       if (!hasValidId) return;
                       onToggleCollection(
                         row.Member_Id,
-                        true,
+                        !isChecked,
                         toRowMeta(row),
                       );
                     }}

@@ -7,7 +7,7 @@ export interface IGroupFormInput {
     area_vill: number | "";
     mem_no: number | "";
     grp_type: number | "";
-    collection_day: number | "";
+    collection_day: string;
     co_id: number | "";
     adm_date: string;
     adm_amt: number | "";
@@ -29,7 +29,7 @@ export interface IGroupData {
     Vill_Area: number;
     Mem_No: number;
     Group_Type: number;
-    Collection_Day?: number;
+    Collection_Day?: string | null;
     CO_Id: number;
     Adm_Date: string;
     Admission_Fee: number;

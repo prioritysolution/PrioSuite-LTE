@@ -28,6 +28,10 @@ export interface LoanRowMeta {
   loanAmount?: string | number | null;
 }
 
+export interface SelectedLoan extends LoanRowMeta {
+  memberId: string | number;
+}
+
 export interface LoanCollectionProps {
   form: UseFormReturn<LoanCollectionForm>;
   onSubmit: (values: LoanCollectionForm) => void;
@@ -44,6 +48,7 @@ export interface LoanCollectionProps {
     checked: boolean,
     meta?: LoanRowMeta,
   ) => void;
+  selectedLoans?: SelectedLoan[];
   selectedAccountId?: string | number | null;
   selectedLoanDate?: string | null;
   selectedLoanAmount?: string | number | null;

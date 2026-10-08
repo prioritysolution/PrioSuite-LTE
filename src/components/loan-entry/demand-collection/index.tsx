@@ -1,6 +1,6 @@
 "use client";
 
-import { ClipboardList, RefreshCw, Send } from "lucide-react";
+import { ClipboardList, RefreshCw, Save } from "lucide-react";
 import { Form } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/common/formFields/DatePicker";
@@ -12,20 +12,35 @@ const DemandCollectionUI = ({
   form,
   coOptions,
   groupOptions,
+  coLoading,
+  groupLoading,
+  detailsLoading,
+  saving,
   members,
+  summary,
   showMembers,
-  selectedMemberIds,
-  onToggleMember,
+  onAmountChange,
   onCollectionDetails,
-  onSend,
+  onSave,
   onReset,
   onSahayikaChange,
 }: DemandCollectionProps) => {
   const selectedCoId = form.watch("co_id");
   const selectedGroupId = form.watch("group_id");
   const collectionDate = form.watch("collectionDate");
+  const sahayikaSelected =
+    selectedCoId !== "" &&
+    selectedCoId !== null &&
+    selectedCoId !== undefined;
+  const groupSelected =
+    selectedGroupId !== "" &&
+    selectedGroupId !== null &&
+    selectedGroupId !== undefined;
   const canLoadDetails =
-    !!collectionDate && !!selectedCoId && !!selectedGroupId;
+    !!collectionDate && sahayikaSelected && groupSelected && !detailsLoading;
+  const hasPayable = members.some(
+    (member) => !member.isCollected && Number(member.payAmount) > 0,
+  );
 
   return (
     <div className="page-content animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -44,6 +59,7 @@ const DemandCollectionUI = ({
           <Button
             type="button"
             onClick={onReset}
+            disabled={saving}
             className="h-12 px-8 text-[15px] font-bold tracking-wide w-full md:w-auto bg-primary hover:bg-[#024786] text-white rounded-lg shadow-sm transition-all flex items-center justify-center gap-2"
           >
             <RefreshCw size={18} />
@@ -54,8 +70,8 @@ const DemandCollectionUI = ({
 
       <Form {...form}>
         <div className="form-sections">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="bg-primary/5 px-4 sm:px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100">
+            <div className="bg-primary/5 px-4 sm:px-6 py-4 border-b border-gray-100 flex items-center gap-3 rounded-t-xl">
               <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
                 <ClipboardList size={18} />
               </div>
@@ -83,6 +99,7 @@ const DemandCollectionUI = ({
                 optionValueKey="value"
                 isSearch
                 isRequired
+                loading={coLoading}
                 placeholder="Select Sahayika"
                 onChange={() => onSahayikaChange()}
               />
@@ -96,9 +113,10 @@ const DemandCollectionUI = ({
                 optionValueKey="value"
                 isSearch
                 isRequired
-                disabled={!selectedCoId}
+                loading={sahayikaSelected && groupLoading}
+                disabled={!sahayikaSelected}
                 placeholder={
-                  selectedCoId
+                  sahayikaSelected
                     ? groupOptions.length
                       ? "Select group"
                       : "No groups for this Sahayika"
@@ -116,7 +134,7 @@ const DemandCollectionUI = ({
                   className="bg-primary hover:bg-primary/90 h-11 px-8 font-bold rounded-lg text-white shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 w-full sm:w-auto"
                 >
                   <ClipboardList className="h-4 w-4" />
-                  Collection Details
+                  {detailsLoading ? "Loading..." : "Collection Details"}
                 </Button>
               </div>
             </div>
@@ -125,23 +143,26 @@ const DemandCollectionUI = ({
           {showMembers && (
             <MemberDetailsSection
               members={members}
-              hasGroup
-              selectedMemberIds={selectedMemberIds}
-              onToggleMember={onToggleMember}
+              summary={summary}
+              loading={detailsLoading}
+              saving={saving}
+              onAmountChange={onAmountChange}
             />
           )}
 
-          <div className="form-actions">
-            <Button
-              type="button"
-              onClick={onSend}
-              disabled={!showMembers || selectedMemberIds.length === 0}
-              className="bg-primary hover:bg-primary/90 h-12 px-10 font-bold rounded-lg text-white shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 w-full sm:w-auto"
-            >
-              <Send size={18} />
-              Send
-            </Button>
-          </div>
+          {showMembers && !summary?.isFullyCollected && (
+            <div className="form-actions">
+              <Button
+                type="button"
+                onClick={onSave}
+                disabled={saving || detailsLoading || !hasPayable}
+                className="bg-primary hover:bg-primary/90 h-12 px-10 font-bold rounded-lg text-white shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 w-full sm:w-auto"
+              >
+                <Save size={18} />
+                {saving ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          )}
         </div>
       </Form>
     </div>

@@ -11,28 +11,50 @@ export interface SelectOption {
   value: number;
 }
 
+export interface DemandCollectionSummary {
+  groupNo: string;
+  groupName: string;
+  collectionDay: string;
+  totalDemand: number;
+  collAmount: number;
+  pendingDemand: number;
+  collectedCount: number;
+  accountCount: number;
+  isFullyCollected: boolean;
+  demandGenerated: boolean;
+}
+
 export interface DemandCollectionMember {
-  Member_Id: number;
-  Member_No: string;
-  Member_Name: string;
-  FatHusb_Name: string;
-  Loan_Date: string;
-  Loan_Amount: number;
-  Installment_Amt: number;
-  Outs_Amount: number;
-  Demand: number;
+  accountId: number;
+  memberId: number;
+  memberNo: string;
+  memberName: string;
+  guardianName: string;
+  accountLabel: string;
+  loanDate: string;
+  totalDemand: number;
+  pendingDemand: number;
+  outstanding: number;
+  collAmount: number;
+  isCollected: boolean;
+  voucherNo: string;
+  payAmount: string;
 }
 
 export interface DemandCollectionProps {
   form: UseFormReturn<DemandCollectionForm>;
   coOptions: SelectOption[];
   groupOptions: SelectOption[];
+  coLoading: boolean;
+  groupLoading: boolean;
+  detailsLoading: boolean;
+  saving: boolean;
   members: DemandCollectionMember[];
+  summary: DemandCollectionSummary | null;
   showMembers: boolean;
-  selectedMemberIds: number[];
-  onToggleMember: (memberId: number, checked: boolean) => void;
+  onAmountChange: (accountId: number, amount: string) => void;
   onCollectionDetails: () => void;
-  onSend: () => void;
+  onSave: () => void;
   onReset: () => void;
   onSahayikaChange: () => void;
 }
