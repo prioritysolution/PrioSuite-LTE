@@ -1,15 +1,15 @@
 "use client";
 
-import React from "react";
-import { FormProvider, UseFormReturn } from "react-hook-form";
+import React, { useEffect } from "react";
+import { FormProvider, UseFormReturn, useForm } from "react-hook-form";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Loader2, Save, RefreshCw, Search, ArrowRight, X } from "lucide-react";
 import { IGroupFormInput } from "@/app/(dashboard)/manage-profile/group-admission/types";
 import { BasicAndAdmissionDetails } from "./BasicAndAdmissionDetails";
 import { PaymentAndStatusDetails } from "./PaymentAndStatusDetails";
 import { SearchGroupModal } from "./SearchGroupModal";
 import RadioField from "@/common/formFields/RadioFields";
+import InputField from "@/common/formFields/InputField";
 
 interface GroupAdmissionUIProps {
   state: {
@@ -44,6 +44,21 @@ export const GroupAdmissionUI: React.FC<GroupAdmissionUIProps> = ({
   onFetchGroup,
   submitPending,
 }) => {
+  const searchMethods = useForm<{ group_no: string }>({
+    defaultValues: { group_no: state.searchId || "" },
+  });
+  const groupNo = searchMethods.watch("group_no");
+
+  useEffect(() => {
+    if ((groupNo ?? "") === state.searchId) return;
+    setSearchId(groupNo ?? "");
+  }, [groupNo, setSearchId, state.searchId]);
+
+  useEffect(() => {
+    if ((searchMethods.getValues("group_no") ?? "") === state.searchId) return;
+    searchMethods.setValue("group_no", state.searchId || "");
+  }, [searchMethods, state.searchId]);
+
   return (
     <div className="page-content animate-in fade-in slide-in-from-bottom-2 duration-500">
       {/* group admission header section */}
@@ -86,37 +101,44 @@ export const GroupAdmissionUI: React.FC<GroupAdmissionUIProps> = ({
             <div className="flex items-center gap-3 w-full md:w-auto animate-in fade-in slide-in-from-right-4 duration-300">
               {state.flowMode === "update" ? (
                 <div className="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
-                  <div className="relative w-full sm:w-[260px]">
-                    <Search
-                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
-                      size={17}
-                    />
-                    <Input
-                      placeholder="Enter Group No..."
-                      value={state.searchId}
-                      onChange={(e) => setSearchId(e.target.value)}
-                      onKeyDown={(e) =>
-                        e.key === "Enter" &&
-                        state.searchId &&
-                        onFetchGroup(state.searchId)
-                      }
-                      className="pl-9 pr-9 h-12 bg-slate-50 border-gray-200 focus-visible:ring-primary focus-visible:border-primary transition-all font-medium w-full"
-                    />
-                    {state.searchId ? (
-                      <button
-                        type="button"
-                        onClick={() => setSearchId("")}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                        aria-label="Clear group no"
-                      >
-                        <X size={17} />
-                      </button>
-                    ) : null}
-                  </div>
+                  <FormProvider {...searchMethods}>
+                    <div className="w-full sm:w-[260px]">
+                      <InputField
+                        control={searchMethods.control}
+                        name="group_no"
+                        placeholder="Enter Group No..."
+                        className="h-12 bg-slate-50 border-gray-200"
+                        startContent={
+                          <Search size={17} className="text-gray-400" />
+                        }
+                        endContent={
+                          groupNo ? (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                searchMethods.setValue("group_no", "");
+                                setSearchId("");
+                              }}
+                              className="text-gray-400 hover:text-gray-600"
+                              aria-label="Clear group no"
+                            >
+                              <X size={17} />
+                            </button>
+                          ) : undefined
+                        }
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && groupNo) {
+                            e.preventDefault();
+                            onFetchGroup(groupNo);
+                          }
+                        }}
+                      />
+                    </div>
+                  </FormProvider>
                   <div className="flex gap-2 w-full sm:w-auto">
                     <Button
-                      onClick={() => onFetchGroup(state.searchId)}
-                      disabled={!state.searchId || fetchPending}
+                      onClick={() => groupNo && onFetchGroup(groupNo)}
+                      disabled={!groupNo || fetchPending}
                       className="h-12 px-6 bg-primary hover:bg-[#024786] text-white font-bold rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 flex-1 sm:flex-none whitespace-nowrap"
                     >
                       {fetchPending ? (

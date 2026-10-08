@@ -189,6 +189,7 @@ export const BasicAndAdmissionDetails = (_props: Props) => {
           optionValueKey="value"
           isSearch={true}
           isRequired={true}
+          disableSorting
           placeholder="Select collection day"
         />
 

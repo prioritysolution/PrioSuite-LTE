@@ -35,11 +35,13 @@ const getRawRoute = (item: any): string | null => {
 };
 
 const getMenuName = (menu: any): string =>
-  menu?.menu_name ||
-  menu?.Menu_Name ||
-  menu?.menuName ||
-  menu?.name ||
-  "";
+  String(
+    menu?.menu_name ||
+      menu?.Menu_Name ||
+      menu?.menuName ||
+      menu?.name ||
+      "",
+  ).trim();
 
 const getSubMenuName = (sub: any): string =>
   sub?.SubMenu_Name ||
@@ -208,7 +210,7 @@ const SideBar = ({
               const isActive =
                 hasActiveChild || (!!menuPath && pathname === menuPath);
               const isExpanded =
-                menuName === expandedLink || hasActiveChild;
+                menuName !== "" && menuName === String(expandedLink || "").trim();
 
               return (
                 <div key={menu.menu_id || menu.Menu_Id || id}>
