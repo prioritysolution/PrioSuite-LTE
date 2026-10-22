@@ -8,6 +8,7 @@ import { differenceInCalendarDays, format, isValid, startOfDay } from "date-fns"
 import { toast } from "sonner";
 import * as yup from "yup";
 import getCookieData from "@/lib/getCookieData";
+import { useDebouncedRequest } from "@/hooks/useDebouncedRequest";
 import { getBranchListAPI } from "@/container/loan-reports/detailed-list/DetailedListApi";
 import {
   isHeadFlag,
@@ -83,7 +84,7 @@ export const useDailySheet = () => {
   });
 
   const { data: branchRows = [], isLoading: branchLoading } = useQuery({
-    queryKey: ["dailySheetBranches", orgId],
+    queryKey: ["misReportBranches", orgId],
     queryFn: () => getBranchListAPI(orgId),
     enabled: isHead && orgId > 0,
     staleTime: 10 * 60 * 1000,
@@ -185,6 +186,8 @@ export const useDailySheet = () => {
     }
   };
 
+  const requestSheet = useDebouncedRequest(loadSheet);
+
   const openDetails = async (accountId: number | null, title: string) => {
     if (!drillAllowed) return;
     const values = methods.getValues();
@@ -217,7 +220,7 @@ export const useDailySheet = () => {
   };
 
   useEffect(() => {
-    void loadSheet(methods.getValues());
+    requestSheet(methods.getValues());
     // Load today's sheet once when the screen opens.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -232,7 +235,7 @@ export const useDailySheet = () => {
     report,
     view,
     drillAllowed,
-    onShow: loadSheet,
+    onShow: requestSheet,
     onViewChange: setView,
     onOpenLedger: (accountId: number, ledgerName: string) => {
       const from = formatApiRange(methods.getValues());

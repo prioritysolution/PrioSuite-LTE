@@ -1,35 +1,108 @@
 import { UseFormReturn } from "react-hook-form";
 
 export interface LoanCollectionForm {
-  collectionDate: Date | string;
+  collectionDate: Date | string | null;
   branchId: string | number | "";
   groupId: string | number;
-  memberId: string | number;
-  loanDate: string;
-  loanAmount: string | number;
-  installmentAmount: string | number;
-  currentBalance: string | number;
-  demand: string | number;
-  realisableAmount: string | number;
-  amount: string;
-  principalAmount: string;
-  interestAmount: string;
-  penalAmount: string;
   refVoucherNo: string;
-  transMode: string;
-  bankId: string | number;
-  bankRef: string;
 }
 
-/** Identifies one loan application row for the same member. */
-export interface LoanRowMeta {
-  accountId?: string | number | null;
-  loanDate?: string | null;
-  loanAmount?: string | number | null;
+/** One loan account row from GetLoanCycleList (a member with two loans has two rows). */
+export interface CollectionLoanRow {
+  accountId: number;
+  accountNo: string;
+  memberId: number;
+  memberNo: string;
+  memberName: string;
+  guardianName: string;
+  areaName: string;
+  loanCycle: string;
+  loanDate: string;
+  loanAmount: number;
+  installmentAmt: number;
+  balance: number;
+  currentDemand: number;
+  collAmount: number;
+  prnAmount: number;
+  inttAmount: number;
+  penalAmount: number;
 }
 
-export interface SelectedLoan extends LoanRowMeta {
-  memberId: string | number;
+export interface PaymentEntryRow {
+  accountId: number;
+  accountNo: string;
+  memberId: number;
+  memberNo: string;
+  memberName: string;
+  balance: number;
+  /** Raw input text so partially typed numbers are kept. */
+  amount: string;
+  penal: string;
+  principal: number;
+  interest: number;
+  /** Split is outdated and a CalcCollectionSplit call is pending. */
+  splitPending: boolean;
+  /** Message from CalcCollectionSplit when it is not "OK". */
+  splitError: string;
+  /** Server-side error for this row from PostCollection. */
+  serverError: string;
+}
+
+export type PaymentEntryField = "amount" | "penal";
+
+export interface CollectionTotals {
+  count: number;
+  memberCount: number;
+  collAmount: number;
+  prnAmount: number;
+  inttAmount: number;
+  penalAmount: number;
+}
+
+export interface CollectionReceipt {
+  accountId: number;
+  memberId: number;
+  memberNo: string;
+  memberName: string;
+  collId: number | null;
+  voucherId: number | null;
+  voucherNo: string;
+  collAmount: number;
+  prnAmount: number;
+  inttAmount: number;
+  penalAmount: number;
+  outsAmount: number;
+}
+
+export interface CollectionResult {
+  message: string;
+  voucherNo: string;
+  postedCount: number;
+  totals: CollectionTotals;
+  rows: CollectionReceipt[];
+}
+
+export interface CalcSplitRequestRow {
+  account_id: number;
+  member_id: number;
+  coll_amount: number;
+  penal_amount?: number;
+}
+
+export interface PostCollectionRow extends CalcSplitRequestRow {
+  prn_amount: number;
+  intt_amount: number;
+  penal_amount: number;
+}
+
+export interface PostCollectionPayload {
+  org_id: number;
+  branch_id: number;
+  coll_date: string;
+  co_id: number | null;
+  ref_vouch: string | null;
+  fin_id: number | null;
+  coll_data: PostCollectionRow[];
 }
 
 export interface LoanCollectionProps {
@@ -37,22 +110,24 @@ export interface LoanCollectionProps {
   onSubmit: (values: LoanCollectionForm) => void;
   resetForm: () => void;
   groupList: any[];
-  memberList: any[];
+  loanRows: CollectionLoanRow[];
   isGroupLoading: boolean;
-  isMemberLoading: boolean;
-  isLoanInfoLoading: boolean;
-  isSplitLoading?: boolean;
+  isLoanListLoading: boolean;
   loading: boolean;
-  onToggleCollection: (
-    memberId: string | number,
-    checked: boolean,
-    meta?: LoanRowMeta,
+  entries: PaymentEntryRow[];
+  rowErrors: Record<number, string>;
+  totals: CollectionTotals;
+  canSave: boolean;
+  isSplitting: boolean;
+  onToggleLoan: (row: CollectionLoanRow, checked: boolean) => void;
+  onToggleAll: (checked: boolean) => void;
+  onEntryChange: (
+    accountId: number,
+    field: PaymentEntryField,
+    value: string,
   ) => void;
-  selectedLoans?: SelectedLoan[];
-  selectedAccountId?: string | number | null;
-  selectedLoanDate?: string | null;
-  selectedLoanAmount?: string | number | null;
-  showSuccessMessage?: boolean;
-  successMessage?: string;
-  onSuccessClose?: (open: boolean) => void;
+  onRemoveEntry: (accountId: number) => void;
+  onClearEntries: () => void;
+  collectionResult: CollectionResult | null;
+  onReceiptClose: () => void;
 }

@@ -14,9 +14,7 @@ import {
 interface FilterFormProps {
   form: UseFormReturn<DemandGenerationForm>;
   coOptions: SelectOption[];
-  groupOptions: SelectOption[];
   coLoading: boolean;
-  groupLoading: boolean;
   generating: boolean;
   onGenerate: (values: DemandGenerationForm) => void;
   onReset: () => void;
@@ -26,27 +24,14 @@ interface FilterFormProps {
 export function DemandGenerationFilterForm({
   form,
   coOptions,
-  groupOptions,
   coLoading,
-  groupLoading,
   generating,
   onGenerate,
   onReset,
   onSelectionChange,
 }: FilterFormProps) {
-  const selectedCoId = form.watch("co_id");
-  const selectedGroupId = form.watch("group_id");
   const demandDate = form.watch("demand_date");
-  const sahayikaSelected =
-    selectedCoId !== "" &&
-    selectedCoId !== null &&
-    selectedCoId !== undefined;
-  const groupSelected =
-    selectedGroupId !== "" &&
-    selectedGroupId !== null &&
-    selectedGroupId !== undefined;
-  const canGenerate =
-    !!demandDate && sahayikaSelected && groupSelected && !generating;
+  const canGenerate = !!demandDate && !generating;
 
   return (
     <Form {...form}>
@@ -54,7 +39,7 @@ export function DemandGenerationFilterForm({
         onSubmit={form.handleSubmit(onGenerate)}
         className="space-y-4"
       >
-        <div className="form-grid">
+        <div className="form-grid items-start">
           <DatePicker
             control={form.control}
             name="demand_date"
@@ -70,39 +55,16 @@ export function DemandGenerationFilterForm({
             control={form.control}
             name="co_id"
             label="Sahayika"
+            className="space-y-0"
             options={coOptions}
             optionLabelKey="label"
             optionValueKey="value"
             isSearch
-            isRequired
             loading={coLoading}
-            placeholder="Select Sahayika"
-            onChange={() => {
-              form.setValue("group_id", "");
-              onSelectionChange();
-            }}
-            sortValue="value"
-          />
-
-          <DropdownField
-            control={form.control}
-            name="group_id"
-            label="Group"
-            options={groupOptions}
-            optionLabelKey="label"
-            optionValueKey="value"
-            isSearch
-            isRequired
-            loading={sahayikaSelected && groupLoading}
-            disabled={!sahayikaSelected}
-            placeholder={
-              sahayikaSelected
-                ? groupOptions.length
-                  ? "Select group"
-                  : "No groups for this Sahayika"
-                : "Select Sahayika first"
-            }
+            placeholder="All Sahayika"
+            hint="Demand is generated for every group of the selected Sahayika"
             onChange={() => onSelectionChange()}
+            disableSorting
           />
         </div>
 

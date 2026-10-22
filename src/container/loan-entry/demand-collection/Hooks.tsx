@@ -10,6 +10,7 @@ import * as yup from "yup";
 import { useGlobalContext } from "@/context/GlobalContext";
 import {
   DemandCollectionForm,
+  DemandCollectionGroup,
   DemandCollectionMember,
   DemandCollectionSummary,
   SelectOption,
@@ -18,30 +19,38 @@ import {
   extractList,
   flattenDetails,
   getDemandCollectionDetailsAPI,
-  getSahayikaGroupListAPI,
+  getDemandListAPI,
   getSahayikaListAPI,
+  mapCollectionGroups,
   mapCollectionMembers,
   mapSummary,
   postDemandCollectionAPI,
+  toAmount,
 } from "./DemandCollectionApi";
 
 const schema = yup.object().shape({
   collectionDate: yup.mixed().required("Collection date is required"),
-  co_id: yup
-    .number()
-    .transform((value) => (Number.isNaN(value) ? undefined : value))
-    .required("Sahayika is required"),
-  group_id: yup
-    .number()
-    .transform((value) => (Number.isNaN(value) ? undefined : value))
-    .required("Group is required"),
 });
+
+const ALL_DEMANDS = 0;
+
+const formatMoney = (value: number) =>
+  value.toLocaleString("en-IN", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
 
 const isChosen = (value: number | "" | null | undefined) =>
   value !== "" &&
   value !== null &&
   value !== undefined &&
   !Number.isNaN(Number(value));
+
+const toGroupId = (value: number | "" | null | undefined) =>
+  isChosen(value) && Number(value) > 0 ? Number(value) : undefined;
+
+const toCoId = (value: number | "" | null | undefined) =>
+  isChosen(value) ? Number(value) : undefined;
 
 const toApiDate = (value: Date | string | null | undefined) => {
   if (!value) return "";
@@ -67,10 +76,11 @@ export const useDemandCollection = () => {
   const selectedCoId = methods.watch("co_id");
   const selectedGroupId = methods.watch("group_id");
   const collectionDate = methods.watch("collectionDate");
-  const sahayikaSelected = isChosen(selectedCoId);
 
   const [members, setMembers] = useState<DemandCollectionMember[]>([]);
   const [summary, setSummary] = useState<DemandCollectionSummary | null>(null);
+  const [groups, setGroups] = useState<DemandCollectionGroup[]>([]);
+  const [groupWise, setGroupWise] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
   const [detailsLoading, setDetailsLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -80,13 +90,6 @@ export const useDemandCollection = () => {
     queryKey: ["demandSahayikaList", orgId, branchId],
     queryFn: () => getSahayikaListAPI(orgId, branchId),
     enabled: orgId > 0 && branchId > 0,
-  });
-
-  const groupQuery = useQuery({
-    queryKey: ["demandSahayikaGroups", orgId, branchId, selectedCoId],
-    queryFn: () =>
-      getSahayikaGroupListAPI(orgId, branchId, Number(selectedCoId)),
-    enabled: orgId > 0 && branchId > 0 && sahayikaSelected,
   });
 
   const coOptions: SelectOption[] = useMemo(
@@ -106,26 +109,37 @@ export const useDemandCollection = () => {
     [sahayikaQuery.data],
   );
 
-  const groupOptions: SelectOption[] = useMemo(
-    () =>
-      extractList(groupQuery.data)
-        .map((item) => {
-          const id = item?.Group_Id ?? item?.group_id;
-          const label = String(
-            item?.Display_Name ||
-              [item?.Group_Name, item?.Group_No ? `(${item.Group_No})` : ""]
-                .filter(Boolean)
-                .join(" "),
-          ).trim();
-          return { label, value: Number(id) };
-        })
-        .filter((item) => item.label !== "" && item.value > 0),
-    [groupQuery.data],
-  );
+  const demandDate = toApiDate(collectionDate);
+  const demandCoId = toCoId(selectedCoId);
+
+  const demandQuery = useQuery({
+    queryKey: ["demandCollectionDemandList", orgId, branchId, demandDate, demandCoId],
+    queryFn: () =>
+      getDemandListAPI({ orgId, branchId, demandDate, coId: demandCoId }),
+    enabled: orgId > 0 && branchId > 0 && demandDate !== "",
+  });
+
+  const demandOptions: SelectOption[] = useMemo(() => {
+    const noData = /no data found/i.test(String(demandQuery.data?.message || ""));
+    const list = (noData ? [] : extractList(demandQuery.data))
+      .map((item) => {
+        const id = item?.Group_Id ?? item?.group_id;
+        const label = `Demand ₹${formatMoney(toAmount(item?.Total_Demand))}`;
+        return { label, value: Number(id) };
+      })
+      .filter((item) => item.label !== "" && item.value > 0);
+    return [{ label: "All Demands", value: ALL_DEMANDS }, ...list];
+  }, [demandQuery.data]);
+
+  useEffect(() => {
+    methods.setValue("group_id", "");
+  }, [demandDate, methods]);
 
   const clearSheet = useCallback(() => {
     setMembers([]);
     setSummary(null);
+    setGroups([]);
+    setGroupWise(false);
     setShowMembers(false);
   }, []);
 
@@ -136,30 +150,35 @@ export const useDemandCollection = () => {
 
   const loadDetails = useCallback(async () => {
     const collDate = toApiDate(collectionDate);
-    if (!orgId || !branchId || !collDate || !isChosen(selectedGroupId)) return;
+    if (!orgId || !branchId || !collDate) return;
+    const groupId = toGroupId(selectedGroupId);
     const requestId = requestRef.current;
     setDetailsLoading(true);
     try {
-      const res = await getDemandCollectionDetailsAPI(
+      const res = await getDemandCollectionDetailsAPI({
         orgId,
         branchId,
         collDate,
-        Number(selectedGroupId),
-      );
+        coId: toCoId(selectedCoId),
+        groupId,
+      });
       if (requestRef.current !== requestId) return;
       const message = String(res?.message || "");
       if (/no data found/i.test(message)) {
         setMembers([]);
         setSummary(null);
+        setGroups([]);
+        setGroupWise(!groupId);
         setShowMembers(true);
         toast.message(
-          flattenDetails(res?.details) ||
-            "No demand found for the selected group on this date.",
+          flattenDetails(res?.details) || "No demand found on this date.",
         );
         return;
       }
       const nextSummary = mapSummary(res?.Summary ?? res?.data?.Summary);
       setSummary(nextSummary);
+      setGroups(mapCollectionGroups(res?.Groups ?? res?.data?.Groups));
+      setGroupWise(!groupId);
       setMembers(mapCollectionMembers(extractList(res)));
       setShowMembers(true);
       if (nextSummary?.demandGenerated) {
@@ -177,7 +196,7 @@ export const useDemandCollection = () => {
     } finally {
       if (requestRef.current === requestId) setDetailsLoading(false);
     }
-  }, [branchId, collectionDate, orgId, selectedGroupId]);
+  }, [branchId, collectionDate, orgId, selectedCoId, selectedGroupId]);
 
   const onCollectionDetails = methods.handleSubmit(() => {
     void loadDetails();
@@ -195,9 +214,9 @@ export const useDemandCollection = () => {
 
   const onSave = useCallback(async () => {
     const collDate = toApiDate(methods.getValues("collectionDate"));
-    const coId = methods.getValues("co_id");
-    const groupId = methods.getValues("group_id");
-    if (!orgId || !branchId || !collDate || !isChosen(groupId)) return;
+    const coId = toCoId(methods.getValues("co_id"));
+    const groupId = toGroupId(methods.getValues("group_id"));
+    if (!orgId || !branchId || !collDate) return;
 
     const collData = members
       .filter((member) => !member.isCollected && Number(member.payAmount) > 0)
@@ -218,8 +237,8 @@ export const useDemandCollection = () => {
         org_id: orgId,
         branch_id: branchId,
         coll_date: collDate,
-        co_id: Number(coId),
-        group_id: Number(groupId),
+        ...(coId !== undefined ? { co_id: coId } : {}),
+        ...(groupId ? { group_id: groupId } : {}),
         coll_data: collData,
       });
       const errorNo = Number(res?.Data?.Error_No ?? res?.data?.Error_No);
@@ -271,13 +290,15 @@ export const useDemandCollection = () => {
   return {
     methods,
     coOptions,
-    groupOptions,
+    demandOptions,
     coLoading: sahayikaQuery.isLoading,
-    groupLoading: groupQuery.isLoading,
+    demandLoading: demandQuery.isFetching,
     detailsLoading,
     saving,
     members,
     summary,
+    groups,
+    groupWise,
     showMembers,
     onAmountChange,
     onCollectionDetails,

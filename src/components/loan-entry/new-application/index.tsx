@@ -7,12 +7,16 @@ import { Loader2, Save, RefreshCw } from "lucide-react";
 import { IGroupLoanForm } from "@/app/(dashboard)/loan-entry/new-application/types";
 import { GroupAndSchemeDetails } from "./GroupAndSchemeDetails";
 import { MemberLoanTable } from "./MemberLoanTable";
+import { ContinueApplicationModal } from "./ContinueApplicationModal";
 
 interface NewApplicationUIProps {
   methods: UseFormReturn<IGroupLoanForm>;
   onSubmit: (e?: React.BaseSyntheticEvent) => Promise<unknown>;
   submitPending: boolean;
   onReset: () => void;
+  isContinuePromptOpen: boolean;
+  onContinueSame: () => void;
+  onStartFresh: () => void;
 }
 
 export const NewApplicationUI: React.FC<NewApplicationUIProps> = ({
@@ -20,6 +24,9 @@ export const NewApplicationUI: React.FC<NewApplicationUIProps> = ({
   onSubmit,
   submitPending,
   onReset,
+  isContinuePromptOpen,
+  onContinueSame,
+  onStartFresh,
 }) => {
   const members = methods.watch("members") || [];
   const hasMembers = members.length > 0;
@@ -73,6 +80,12 @@ export const NewApplicationUI: React.FC<NewApplicationUIProps> = ({
           )}
         </form>
       </FormProvider>
+
+      <ContinueApplicationModal
+        isOpen={isContinuePromptOpen}
+        onContinueSame={onContinueSame}
+        onStartFresh={onStartFresh}
+      />
     </div>
   );
 };

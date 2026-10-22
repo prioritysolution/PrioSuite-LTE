@@ -2,6 +2,7 @@
 import { doGetApiCall, doPostApiCall } from "@/lib/axios";
 import { endPoints } from "@/services/apiEndpoints";
 import {
+  DemandCollectionGroup,
   DemandCollectionMember,
   DemandCollectionSummary,
 } from "./DemandCollectionType";
@@ -15,22 +16,51 @@ export const getSahayikaGroupListAPI = (
   coId: number,
 ) => doGetApiCall({ url: endPoints.getSahayikaGroupList(orgId, branchId, coId) });
 
-export const getDemandCollectionDetailsAPI = (
-  orgId: number,
-  branchId: number,
-  collDate: string,
-  groupId: number,
-) =>
-  doGetApiCall({
-    url: endPoints.getDemandCollectionDetails(orgId, branchId, collDate, groupId),
+export const getDemandListAPI = (params: {
+  orgId: number;
+  branchId: number;
+  demandDate: string;
+  coId?: number;
+}) => {
+  const query = new URLSearchParams({
+    org_id: String(params.orgId),
+    branch_id: String(params.branchId),
+    demand_date: params.demandDate,
   });
+  if (params.coId !== undefined) {
+    query.set("co_id", String(params.coId));
+  }
+  return doGetApiCall({ url: endPoints.getDemandGroupWise(query.toString()) });
+};
+
+export const getDemandCollectionDetailsAPI = (params: {
+  orgId: number;
+  branchId: number;
+  collDate: string;
+  coId?: number;
+  groupId?: number;
+}) => {
+  const query = new URLSearchParams({
+    org_id: String(params.orgId),
+    branch_id: String(params.branchId),
+    coll_date: params.collDate,
+  });
+  if (params.groupId) {
+    query.set("group_id", String(params.groupId));
+  } else if (params.coId !== undefined) {
+    query.set("co_id", String(params.coId));
+  }
+  return doGetApiCall({
+    url: endPoints.getDemandCollectionDetails(query.toString()),
+  });
+};
 
 export const postDemandCollectionAPI = (body: {
   org_id: number;
   branch_id: number;
   coll_date: string;
-  co_id: number;
-  group_id: number;
+  co_id?: number;
+  group_id?: number;
   coll_data: {
     account_id: number;
     member_id: number;
@@ -98,6 +128,7 @@ export const mapSummary = (summary: any): DemandCollectionSummary | null => {
     groupNo: String(pick(summary, ["Group_No"]) || ""),
     groupName: String(pick(summary, ["Group_Name"]) || ""),
     collectionDay: String(pick(summary, ["Collection_Day"]) || ""),
+    groupCount: toAmount(summary.Group_Count),
     totalDemand: toAmount(summary.Total_Demand),
     collAmount: toAmount(summary.Coll_Amount),
     pendingDemand: toAmount(summary.Pending_Demand),
@@ -107,6 +138,21 @@ export const mapSummary = (summary: any): DemandCollectionSummary | null => {
     demandGenerated: Boolean(summary.Demand_Generated),
   };
 };
+
+export const mapCollectionGroups = (list: unknown): DemandCollectionGroup[] =>
+  (Array.isArray(list) ? list : []).map((item: any) => ({
+    groupId: toAmount(item?.Group_Id),
+    groupNo: String(pick(item, ["Group_No"]) || ""),
+    groupName: String(pick(item, ["Group_Name"]) || ""),
+    collectionDay: String(pick(item, ["Collection_Day"]) || ""),
+    coName: String(pick(item, ["CO_Name"]) || ""),
+    accountCount: toAmount(item?.Account_Count),
+    collectedCount: toAmount(item?.Collected_Count),
+    totalDemand: toAmount(item?.Total_Demand),
+    collAmount: toAmount(item?.Coll_Amount),
+    pendingDemand: toAmount(item?.Pending_Demand),
+    isFullyCollected: Boolean(item?.Is_Fully_Collected),
+  }));
 
 export const mapCollectionMembers = (list: any[]): DemandCollectionMember[] =>
   list.map((item) => {
@@ -118,6 +164,9 @@ export const mapCollectionMembers = (list: any[]): DemandCollectionMember[] =>
     return {
       accountId,
       memberId: toAmount(pick(item, ["Member_Id"])),
+      groupId: toAmount(pick(item, ["Group_Id"])),
+      groupNo: String(pick(item, ["Group_No"]) || ""),
+      groupName: String(pick(item, ["Group_Name"]) || ""),
       memberNo: String(pick(item, ["Member_No"]) || ""),
       memberName: String(pick(item, ["Member_Name"]) || ""),
       guardianName: String(pick(item, ["Guardian_Name", "FatHusb_Name"]) || ""),

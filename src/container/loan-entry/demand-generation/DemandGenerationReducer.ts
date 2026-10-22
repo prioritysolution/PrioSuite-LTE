@@ -3,11 +3,11 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 import {
   DemandGenerationState,
-  DemandRow,
+  GenerateResult,
 } from "./DemandGenerationType";
 
 const initialState: DemandGenerationState = {
-  rows: null,
+  result: null,
   loading: false,
 };
 
@@ -15,20 +15,20 @@ const demandGenerationSlice = createSlice({
   name: "demandGeneration",
   initialState,
   reducers: {
-    setDemandRows: (state, action: PayloadAction<DemandRow[] | null>) => {
-      state.rows = action.payload;
+    setDemandResult: (state, action: PayloadAction<GenerateResult | null>) => {
+      state.result = action.payload;
     },
     setDemandLoading: (state, action: PayloadAction<boolean>) => {
       state.loading = action.payload;
     },
     clearDemand: (state) => {
-      state.rows = null;
+      state.result = null;
       state.loading = false;
     },
   },
 });
 
-export const { setDemandRows, setDemandLoading, clearDemand } =
+export const { setDemandResult, setDemandLoading, clearDemand } =
   demandGenerationSlice.actions;
 
 export default demandGenerationSlice.reducer;

@@ -93,6 +93,8 @@ export interface SelectOption {
   value: number;
 }
 
+export type DatePreset = "month" | "lastMonth" | "fy";
+
 export interface Crumb {
   label: string;
   level: "all" | "branch" | "sahayika" | "group";
@@ -115,7 +117,8 @@ export interface DemandVsCollectionProps {
   view: ReportView;
   crumbs: Crumb[];
   onShow: (values: DemandVsCollectionForm) => void;
-  onPreset: (preset: "month" | "lastMonth" | "fy") => void;
+  onPreset: (preset: DatePreset) => void;
+  activePreset: DatePreset | null;
   onViewChange: (view: ReportView) => void;
   onDrill: (row: GroupRow) => void;
   onCrumb: (level: Crumb["level"]) => void;

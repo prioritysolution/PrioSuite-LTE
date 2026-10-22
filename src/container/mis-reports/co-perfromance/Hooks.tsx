@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   endOfMonth,
   format,
+  isSameDay,
   isValid,
   startOfDay,
   startOfMonth,
@@ -15,6 +16,7 @@ import {
 import { toast } from "sonner";
 import * as yup from "yup";
 import getCookieData from "@/lib/getCookieData";
+import { useDebouncedRequest } from "@/hooks/useDebouncedRequest";
 import { getBranchListAPI } from "@/container/loan-reports/detailed-list/DetailedListApi";
 import {
   extractList,
@@ -26,11 +28,15 @@ import {
   CoPerformanceData,
   CoPerformanceForm,
   DataView,
+  DatePreset,
   LayoutView,
   PerfRow,
 } from "./CoPerformanceType";
 
 const ALL = -1;
+
+const sameDay = (value: unknown, target: Date) =>
+  value instanceof Date && isValid(value) && isSameDay(value, target);
 
 const flattenMessages = (value: unknown): string => {
   if (!value) return "";
@@ -70,6 +76,7 @@ export const useCoPerformance = () => {
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<CoPerformanceData | null>(null);
   const [layout, setLayout] = useState<LayoutView>("table");
+  const [selectedPreset, setSelectedPreset] = useState<DatePreset | null>("month");
 
   const schema = yup.object({
     fromDate: yup
@@ -107,14 +114,14 @@ export const useCoPerformance = () => {
   const sahayikaDisabled = isHead && listBranchId <= 0;
 
   const branchQuery = useQuery({
-    queryKey: ["coPerformanceBranches", orgId],
+    queryKey: ["misReportBranches", orgId],
     queryFn: () => getBranchListAPI(orgId),
     enabled: isHead && orgId > 0,
     staleTime: 10 * 60 * 1000,
   });
 
   const sahayikaQuery = useQuery({
-    queryKey: ["coPerformanceSahayika", orgId, listBranchId],
+    queryKey: ["misReportSahayika", orgId, listBranchId],
     queryFn: () => getSahayikaListAPI(orgId, listBranchId),
     enabled: orgId > 0 && listBranchId > 0,
   });
@@ -208,12 +215,14 @@ export const useCoPerformance = () => {
     }
   };
 
+  const requestReport = useDebouncedRequest(loadReport);
+
   const viewFor = (values: CoPerformanceForm, nextLayout: LayoutView): DataView => {
     if (nextLayout === "trend") return "month";
     return Number(values.coId) >= 0 ? "group" : "sahayika";
   };
 
-  const onPreset = (preset: "month" | "lastMonth" | "quarter" | "fy") => {
+  const presetRange = (preset: DatePreset) => {
     const now = new Date();
     let from = startOfMonth(now);
     let to = now;
@@ -233,10 +242,25 @@ export const useCoPerformance = () => {
       to = end && end < now ? end : now;
       if (to < from) to = from;
     }
+    return { from, to };
+  };
+
+  const watchedFrom = methods.watch("fromDate");
+  const watchedTo = methods.watch("toDate");
+  const selectedRange = selectedPreset ? presetRange(selectedPreset) : null;
+  // A preset stays highlighted only while the dates still match it.
+  const activePreset =
+    selectedRange && sameDay(watchedFrom, selectedRange.from) && sameDay(watchedTo, selectedRange.to)
+      ? selectedPreset
+      : null;
+
+  const onPreset = (preset: DatePreset) => {
+    const { from, to } = presetRange(preset);
+    setSelectedPreset(preset);
     methods.setValue("fromDate", from, { shouldValidate: true });
     methods.setValue("toDate", to, { shouldValidate: true });
     const values = { ...methods.getValues(), fromDate: from, toDate: to };
-    void loadReport(values, viewFor(values, layout));
+    requestReport(values, viewFor(values, layout));
   };
 
   const onBranchChange = (value: number) => {
@@ -254,7 +278,7 @@ export const useCoPerformance = () => {
     };
     methods.reset(next);
     setLayout("table");
-    void loadReport(next, "group");
+    requestReport(next, "group");
   };
 
   const onCrumb = (level: "branch" | "sahayika") => {
@@ -262,14 +286,14 @@ export const useCoPerformance = () => {
     const next = { ...methods.getValues(), coId: ALL };
     methods.reset(next);
     setLayout("table");
-    void loadReport(next, "sahayika");
+    requestReport(next, "sahayika");
   };
 
   const onLayout = (next: LayoutView) => {
     setLayout(next);
     const values = methods.getValues();
     const nextView = viewFor(values, next);
-    if (report?.view !== nextView) void loadReport(values, nextView);
+    if (report?.view !== nextView) requestReport(values, nextView);
   };
 
   const crumbs = useMemo(() => {
@@ -296,7 +320,7 @@ export const useCoPerformance = () => {
   }, [branchName, branchOptions, isHead, sahayikaOptions, watchedBranch, watchedCo]);
 
   useEffect(() => {
-    void loadReport(methods.getValues(), "sahayika");
+    requestReport(methods.getValues(), "sahayika");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -313,8 +337,9 @@ export const useCoPerformance = () => {
     report,
     layout,
     crumbs,
-    onShow: (values: CoPerformanceForm) => loadReport(values, viewFor(values, layout)),
+    onShow: (values: CoPerformanceForm) => requestReport(values, viewFor(values, layout)),
     onPreset,
+    activePreset,
     onLayout,
     onDrill,
     onCrumb,

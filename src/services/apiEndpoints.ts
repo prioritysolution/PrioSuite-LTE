@@ -112,6 +112,8 @@ export const endPoints = {
     `${createApi}/Org/ProcessLoan/GetScheme?org_id=${orgId}`,
   getGroupMember: (orgId: number, grpId: number | string) =>
     `${createApi}/Org/ProcessLoan/GetGroupMember?org_id=${orgId}&grp_id=${grpId}`,
+  getLoanEligibleMember: (orgId: number, grpId: number | string) =>
+    `${createApi}/Org/ProcessLoan/GetLoanEligibleMember?org_id=${orgId}&grp_id=${grpId}`,
   getLoanOtherInfo: (
     orgId: number,
     schemeId: number,
@@ -126,20 +128,17 @@ export const endPoints = {
   getSahayikaGroupList: (orgId: number, branchId: number, coId: number) =>
     `${createApi}/Org/ProcessLoan/GetSahayikaGroupList?org_id=${orgId}&branch_id=${branchId}&co_id=${coId}`,
   generateDemand: `${createApi}/Org/ProcessLoan/GenerateDemand`,
-  getDemandMemberWise: (
-    orgId: number,
-    branchId: number,
-    demandDate: string,
-    groupId: number,
-  ) =>
-    `${createApi}/Org/ProcessLoan/GetDemandMemberWise?org_id=${orgId}&branch_id=${branchId}&demand_date=${demandDate}&group_id=${groupId}`,
-  getDemandCollectionDetails: (
-    orgId: number,
-    branchId: number,
-    collDate: string,
-    groupId: number,
-  ) =>
-    `${createApi}/Org/ProcessLoan/GetDemandCollectionDetails?org_id=${orgId}&branch_id=${branchId}&coll_date=${collDate}&group_id=${groupId}`,
+  previewDemand: `${createApi}/Org/ProcessLoan/PreviewDemand`,
+  getDemandCoWise: (query: string) =>
+    `${createApi}/Org/ProcessLoan/GetDemandCoWise?${query}`,
+  getDemandGroupWise: (query: string) =>
+    `${createApi}/Org/ProcessLoan/GetDemandGroupWise?${query}`,
+  getDemandMemberWise: (query: string) =>
+    `${createApi}/Org/ProcessLoan/GetDemandMemberWise?${query}`,
+  getDemandInstallments: (query: string) =>
+    `${createApi}/Org/ProcessLoan/GetDemandInstallments?${query}`,
+  getDemandCollectionDetails: (query: string) =>
+    `${createApi}/Org/ProcessLoan/GetDemandCollectionDetails?${query}`,
   postDemandCollection: `${createApi}/Org/ProcessLoan/PostDemandCollection`,
 
   // Branch List
@@ -171,6 +170,8 @@ export const endPoints = {
     `${createApi}/Org/ManageProfile/GetAllGroupList?org_id=${orgId}&branch_id=${branchId}`,
   getAllMemberList: (orgId: number, groupId: string) =>
     `${createApi}/Org/ManageProfile/GetAllMemberList?org_id=${orgId}&group_id=${groupId}`,
+  getGroupMemberList: (orgId: number, groupId: string | number) =>
+    `${createApi}/Org/ManageProfile/GetGroupMemberList?org_id=${orgId}&group_id=${groupId}`,
   getLoanCollectionReport: (
     orgId: number,
     groupId: string,
@@ -210,7 +211,56 @@ export const endPoints = {
   postDisbursement: `${createApi}/Org/ProcessLoan/PostDisbursement`,
 
   // Loan Collection
+  getCollectionLoanList: (params: {
+    orgId: number;
+    branchId: number;
+    groupId: string | number;
+    collDate?: string;
+    memberIds?: Array<string | number>;
+    accountIds?: Array<string | number>;
+  }) => {
+    const query = new URLSearchParams({
+      org_id: String(params.orgId),
+      branch_id: String(params.branchId),
+      group_id: String(params.groupId),
+    });
+    if (params.collDate) query.set("coll_date", params.collDate);
+    if (params.memberIds?.length) query.set("member_ids", params.memberIds.join(","));
+    if (params.accountIds?.length) query.set("account_ids", params.accountIds.join(","));
+    return `${createApi}/Org/ProcessLoan/GetLoanCycleList?${query.toString()}`;
+  },
+  calcCollectionSplit: `${createApi}/Org/ProcessLoan/CalcCollectionSplit`,
   postCollection: `${createApi}/Org/ProcessLoan/PostCollection`,
+
+  // Rectify — Collection Repayment
+  getCollRectifyList: (query: string) =>
+    `${createApi}/Org/Rectify/GetCollectionList?${query}`,
+  getCollRectifyDetails: (query: string) =>
+    `${createApi}/Org/Rectify/GetCollectionDetails?${query}`,
+  getCollRectifyLoans: (query: string) =>
+    `${createApi}/Org/Rectify/GetTargetLoans?${query}`,
+  postCollRectify: `${createApi}/Org/Rectify/PostCollectionRectify`,
+  getRectifyHistory: (query: string) =>
+    `${createApi}/Org/Rectify/GetRectifyHistory?${query}`,
+  getRectifyLog: (query: string) =>
+    `${createApi}/Org/Rectify/GetRectifyLog?${query}`,
+  getRectifyLogDetails: (query: string) =>
+    `${createApi}/Org/Rectify/GetRectifyLogDetails?${query}`,
+
+  // Rectify — Loan Issue
+  getLoanRectifyList: (query: string) =>
+    `${createApi}/Org/Rectify/GetLoanIssueList?${query}`,
+  getLoanRectifyDetails: (query: string) =>
+    `${createApi}/Org/Rectify/GetLoanIssueDetails?${query}`,
+  calcLoanRectifyTerms: (query: string) =>
+    `${createApi}/Org/Rectify/CalcLoanIssueTerms?${query}`,
+  postLoanRectify: `${createApi}/Org/Rectify/PostLoanIssueRectify`,
+  getLoanRectifyHistory: (query: string) =>
+    `${createApi}/Org/Rectify/GetLoanIssueRectifyHistory?${query}`,
+  getLoanRectifyLog: (query: string) =>
+    `${createApi}/Org/Rectify/GetLoanIssueRectifyLog?${query}`,
+  getLoanRectifyLogDetails: (query: string) =>
+    `${createApi}/Org/Rectify/GetLoanIssueRectifyLogDetails?${query}`,
 
   // Customer Reports — Group Register
   getGroupRegister: (

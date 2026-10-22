@@ -15,6 +15,7 @@ export interface DemandCollectionSummary {
   groupNo: string;
   groupName: string;
   collectionDay: string;
+  groupCount: number;
   totalDemand: number;
   collAmount: number;
   pendingDemand: number;
@@ -24,9 +25,26 @@ export interface DemandCollectionSummary {
   demandGenerated: boolean;
 }
 
+export interface DemandCollectionGroup {
+  groupId: number;
+  groupNo: string;
+  groupName: string;
+  collectionDay: string;
+  coName: string;
+  accountCount: number;
+  collectedCount: number;
+  totalDemand: number;
+  collAmount: number;
+  pendingDemand: number;
+  isFullyCollected: boolean;
+}
+
 export interface DemandCollectionMember {
   accountId: number;
   memberId: number;
+  groupId: number;
+  groupNo: string;
+  groupName: string;
   memberNo: string;
   memberName: string;
   guardianName: string;
@@ -44,13 +62,15 @@ export interface DemandCollectionMember {
 export interface DemandCollectionProps {
   form: UseFormReturn<DemandCollectionForm>;
   coOptions: SelectOption[];
-  groupOptions: SelectOption[];
+  demandOptions: SelectOption[];
   coLoading: boolean;
-  groupLoading: boolean;
+  demandLoading: boolean;
   detailsLoading: boolean;
   saving: boolean;
   members: DemandCollectionMember[];
   summary: DemandCollectionSummary | null;
+  groups: DemandCollectionGroup[];
+  groupWise: boolean;
   showMembers: boolean;
   onAmountChange: (accountId: number, amount: string) => void;
   onCollectionDetails: () => void;

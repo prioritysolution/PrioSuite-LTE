@@ -7,7 +7,11 @@ import { Form } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/common/formFields/DatePicker";
 import DropdownField from "@/common/formFields/DropdownField";
-import { DemandVsCollectionProps, ReportView } from "@/container/mis-reports/demand-vs-collection/DemandVsCollectionType";
+import {
+  DatePreset,
+  DemandVsCollectionProps,
+  ReportView,
+} from "@/container/mis-reports/demand-vs-collection/DemandVsCollectionType";
 import {
   formatAmount,
   formatApiDate,
@@ -24,6 +28,12 @@ const views: { id: ReportView; label: string; headOnly?: boolean }[] = [
   { id: "group", label: "Group" },
   { id: "member", label: "Member" },
   { id: "date", label: "Date" },
+];
+
+const presets: { id: DatePreset; label: string }[] = [
+  { id: "month", label: "This Month" },
+  { id: "lastMonth", label: "Last Month" },
+  { id: "fy", label: "This Financial Year" },
 ];
 
 const pctBar = (value: number | null) => {
@@ -129,6 +139,7 @@ const DemandVsCollectionComponent = ({
   crumbs,
   onShow,
   onPreset,
+  activePreset,
   onViewChange,
   onDrill,
   onCrumb,
@@ -228,9 +239,22 @@ const DemandVsCollectionComponent = ({
               </Button>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={() => onPreset("month")}>This Month</Button>
-              <Button type="button" variant="outline" onClick={() => onPreset("lastMonth")}>Last Month</Button>
-              <Button type="button" variant="outline" onClick={() => onPreset("fy")}>This Financial Year</Button>
+              {presets.map((preset) => {
+                const active = activePreset === preset.id;
+                return (
+                  <Button
+                    key={preset.id}
+                    type="button"
+                    variant={active ? "default" : "outline"}
+                    aria-pressed={active}
+                    disabled={loading}
+                    onClick={() => onPreset(preset.id)}
+                    className={active ? "bg-primary text-white hover:bg-primary/90" : undefined}
+                  >
+                    {preset.label}
+                  </Button>
+                );
+              })}
             </div>
           </form>
         </Form>

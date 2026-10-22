@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   endOfMonth,
   format,
+  isSameDay,
   isValid,
   startOfDay,
   startOfMonth,
@@ -15,6 +16,7 @@ import {
 import { toast } from "sonner";
 import * as yup from "yup";
 import getCookieData from "@/lib/getCookieData";
+import { useDebouncedRequest } from "@/hooks/useDebouncedRequest";
 import { getBranchListAPI } from "@/container/loan-reports/detailed-list/DetailedListApi";
 import {
   extractList,
@@ -27,6 +29,7 @@ import {
   mapDemandVsCollection,
 } from "./DemandVsCollectionApi";
 import {
+  DatePreset,
   DemandVsCollectionData,
   DemandVsCollectionForm,
   GroupRow,
@@ -34,6 +37,9 @@ import {
 } from "./DemandVsCollectionType";
 
 const ALL = -1;
+
+const sameDay = (value: unknown, target: Date) =>
+  value instanceof Date && isValid(value) && isSameDay(value, target);
 
 const flattenMessages = (value: unknown): string => {
   if (!value) return "";
@@ -73,6 +79,7 @@ export const useDemandVsCollection = () => {
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<DemandVsCollectionData | null>(null);
   const [view, setView] = useState<ReportView>(isHead ? "branch" : "sahayika");
+  const [selectedPreset, setSelectedPreset] = useState<DatePreset | null>("month");
 
   const schema = yup.object({
     fromDate: yup
@@ -114,14 +121,14 @@ export const useDemandVsCollection = () => {
   const groupDisabled = sahayikaDisabled || Number(watchedCo) < 0;
 
   const branchQuery = useQuery({
-    queryKey: ["demandVsCollectionBranches", orgId],
+    queryKey: ["misReportBranches", orgId],
     queryFn: () => getBranchListAPI(orgId),
     enabled: isHead && orgId > 0,
     staleTime: 10 * 60 * 1000,
   });
 
   const sahayikaQuery = useQuery({
-    queryKey: ["demandVsCollectionSahayika", orgId, listBranchId],
+    queryKey: ["misReportSahayika", orgId, listBranchId],
     queryFn: () => getSahayikaListAPI(orgId, listBranchId),
     enabled: orgId > 0 && listBranchId > 0,
   });
@@ -250,7 +257,9 @@ export const useDemandVsCollection = () => {
     }
   };
 
-  const onPreset = (preset: "month" | "lastMonth" | "fy") => {
+  const requestReport = useDebouncedRequest(loadReport);
+
+  const presetRange = (preset: DatePreset) => {
     const now = new Date();
     let from = startOfMonth(now);
     let to = now;
@@ -266,9 +275,24 @@ export const useDemandVsCollection = () => {
       to = end && end < now ? end : now;
       if (to < from) to = from;
     }
+    return { from, to };
+  };
+
+  const watchedFrom = methods.watch("fromDate");
+  const watchedTo = methods.watch("toDate");
+  const selectedRange = selectedPreset ? presetRange(selectedPreset) : null;
+  // A preset stays highlighted only while the dates still match it.
+  const activePreset =
+    selectedRange && sameDay(watchedFrom, selectedRange.from) && sameDay(watchedTo, selectedRange.to)
+      ? selectedPreset
+      : null;
+
+  const onPreset = (preset: DatePreset) => {
+    const { from, to } = presetRange(preset);
+    setSelectedPreset(preset);
     methods.setValue("fromDate", from, { shouldValidate: true });
     methods.setValue("toDate", to, { shouldValidate: true });
-    void loadReport({ ...methods.getValues(), fromDate: from, toDate: to }, view);
+    requestReport({ ...methods.getValues(), fromDate: from, toDate: to }, view);
   };
 
   const onBranchChange = (value: number) => {
@@ -287,19 +311,19 @@ export const useDemandVsCollection = () => {
     if (view === "branch") {
       const next = { ...values, reportBranchId: row.keyId, coId: ALL, groupId: ALL };
       methods.reset(next);
-      void loadReport(next, "sahayika");
+      requestReport(next, "sahayika");
       return;
     }
     if (view === "sahayika") {
       const next = { ...values, coId: row.keyId, groupId: ALL };
       methods.reset(next);
-      void loadReport(next, "group");
+      requestReport(next, "group");
       return;
     }
     if (view === "group") {
       const next = { ...values, groupId: row.keyId };
       methods.reset(next);
-      void loadReport(next, "member");
+      requestReport(next, "member");
     }
   };
 
@@ -308,19 +332,19 @@ export const useDemandVsCollection = () => {
     if (level === "all") {
       const next = { ...values, reportBranchId: 0, coId: ALL, groupId: ALL };
       methods.reset(next);
-      void loadReport(next, "branch");
+      requestReport(next, "branch");
       return;
     }
     if (level === "branch") {
       const next = { ...values, coId: ALL, groupId: ALL };
       methods.reset(next);
-      void loadReport(next, "sahayika");
+      requestReport(next, "sahayika");
       return;
     }
     if (level === "sahayika") {
       const next = { ...values, groupId: ALL };
       methods.reset(next);
-      void loadReport(next, "group");
+      requestReport(next, "group");
     }
   };
 
@@ -367,7 +391,7 @@ export const useDemandVsCollection = () => {
   ]);
 
   useEffect(() => {
-    void loadReport(methods.getValues(), isHead ? "branch" : "sahayika");
+    requestReport(methods.getValues(), isHead ? "branch" : "sahayika");
     // Load the default period once.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -388,9 +412,10 @@ export const useDemandVsCollection = () => {
     report,
     view,
     crumbs,
-    onShow: (values: DemandVsCollectionForm) => loadReport(values, view),
+    onShow: (values: DemandVsCollectionForm) => requestReport(values, view),
     onPreset,
-    onViewChange: (next: ReportView) => loadReport(methods.getValues(), next),
+    activePreset,
+    onViewChange: (next: ReportView) => requestReport(methods.getValues(), next),
     onDrill,
     onCrumb,
     onBranchChange,

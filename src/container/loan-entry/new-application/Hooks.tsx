@@ -10,19 +10,24 @@ import {
 import {
   extractLoanOtherInfoRow,
   getCoListAPI,
+  getGroupMemberAPI,
   getLoanOtherInfoAPI,
+  mapGroupMembers,
   mapLoanOtherInfoFields,
   saveGroupLoanAPI,
 } from "./NewApplicationApi";
 import { useForm, SubmitHandler } from "react-hook-form";
 import { useMutation } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { IGroupLoanForm } from "@/app/(dashboard)/loan-entry/new-application/types";
+import {
+  ICreatedLoanAccount,
+  IGroupLoanForm,
+} from "@/app/(dashboard)/loan-entry/new-application/types";
 import { yupResolver } from "@hookform/resolvers/yup";
 import * as yup from "yup";
 import { AppDispatch, RootState } from "@/redux/store";
 import getCookieData from "@/lib/getCookieData";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { format, isValid } from "date-fns";
 
 const toApiDate = (value: unknown): string => {
@@ -95,6 +100,8 @@ export const useNewApplicationHook = () => {
 
   const selectedBranchId = Number(methods.watch("branch_id") || 0);
 
+  const [isContinuePromptOpen, setIsContinuePromptOpen] = useState(false);
+
   const getCoListAPICall = async (org_id: number, branch_id: number) => {
     try {
       const res = await getCoListAPI(org_id, branch_id);
@@ -126,6 +133,20 @@ export const useNewApplicationHook = () => {
     methods.clearErrors();
   };
 
+  const refreshMembers = async () => {
+    const groupId = methods.getValues("group_id");
+    methods.setValue("members", []);
+    methods.clearErrors();
+    if (!groupId) return;
+    try {
+      const res = await getGroupMemberAPI(orgId, String(groupId));
+      methods.setValue("members", mapGroupMembers(res));
+    } catch (error) {
+      console.log("error= ", error);
+      toast.error("Failed to refresh members.");
+    }
+  };
+
   const submitMutation = useMutation({
     mutationFn: async (data: IGroupLoanForm) => {
       dispatch(saveStart());
@@ -136,7 +157,9 @@ export const useNewApplicationHook = () => {
       // so Accept is not required before Save Entry.
       const enrichedMembers = await Promise.all(
         data.members.map(async (member) => {
-          if (Number(member.loan_amount) <= 0) return member;
+          if (member.has_active_loan || Number(member.loan_amount) <= 0) {
+            return member;
+          }
 
           const infoRes = await getLoanOtherInfoAPI(
             orgId,
@@ -166,7 +189,7 @@ export const useNewApplicationHook = () => {
         branch_id: Number(data.branch_id) || cookieBranchId,
         org_id: orgId,
         mem_details: enrichedMembers
-          .filter((m) => Number(m.loan_amount) > 0)
+          .filter((m) => !m.has_active_loan && Number(m.loan_amount) > 0)
           .map((m) => ({
             mem_id: m.mem_id,
             ln_cycle: m.ln_cycle || 1,
@@ -184,6 +207,7 @@ export const useNewApplicationHook = () => {
     onSuccess: (res: any) => {
       const message =
         res?.message || res?.massage || res?.details || res?.data?.message || "";
+      const details = res?.details || res?.data?.details || "";
       const normalizedMsg = String(message).toLowerCase();
       const isFailure =
         !!normalizedMsg &&
@@ -192,14 +216,28 @@ export const useNewApplicationHook = () => {
           normalizedMsg.includes("invalid"));
 
       if (isFailure && !normalizedMsg.includes("success")) {
-        dispatch(saveFailure(message || "Failed to save"));
-        toast.error(message || "Operation failed. Please try again.");
+        const errorText = details || message || "Failed to save";
+        dispatch(saveFailure(errorText));
+        toast.error(errorText || "Operation failed. Please try again.");
         return;
       }
 
       dispatch(saveSuccess());
-      toast.success("Group Loan Entry saved successfully!");
-      resetForm();
+      const accounts: ICreatedLoanAccount[] = Array.isArray(res?.Data)
+        ? res.Data
+        : Array.isArray(res?.data?.Data)
+          ? res.data.Data
+          : [];
+      const accountNos = accounts
+        .map((row) => row.Account_No)
+        .filter((no) => no !== null && no !== undefined && no !== "");
+      toast.success(details || "Group Loan Entry saved successfully!", {
+        description: accountNos.length
+          ? `Loan A/c No: ${accountNos.join(", ")}`
+          : undefined,
+      });
+      refreshMembers();
+      setIsContinuePromptOpen(true);
     },
     onError: (error: any) => {
       dispatch(saveFailure(error.message || "Failed to save"));
@@ -212,7 +250,9 @@ export const useNewApplicationHook = () => {
   });
 
   const onSubmit: SubmitHandler<IGroupLoanForm> = (data) => {
-    const validMembers = data.members.filter((m) => Number(m.loan_amount) > 0);
+    const validMembers = data.members.filter(
+      (m) => !m.has_active_loan && Number(m.loan_amount) > 0,
+    );
     if (validMembers.length === 0) {
       toast.error("Please enter loan amount for at least one member.");
       return;
@@ -226,5 +266,11 @@ export const useNewApplicationHook = () => {
     onSubmit,
     submitPending: submitMutation.isPending,
     resetForm,
+    isContinuePromptOpen,
+    onContinueSame: () => setIsContinuePromptOpen(false),
+    onStartFresh: () => {
+      setIsContinuePromptOpen(false);
+      resetForm();
+    },
   };
 };

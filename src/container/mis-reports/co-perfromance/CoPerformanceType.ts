@@ -82,6 +82,8 @@ export interface SelectOption {
   value: number;
 }
 
+export type DatePreset = "month" | "lastMonth" | "quarter" | "fy";
+
 export interface Crumb {
   label: string;
   level: "branch" | "sahayika";
@@ -101,7 +103,8 @@ export interface CoPerformanceProps {
   layout: LayoutView;
   crumbs: Crumb[];
   onShow: (values: CoPerformanceForm) => void;
-  onPreset: (preset: "month" | "lastMonth" | "quarter" | "fy") => void;
+  onPreset: (preset: DatePreset) => void;
+  activePreset: DatePreset | null;
   onLayout: (layout: LayoutView) => void;
   onDrill: (row: PerfRow) => void;
   onCrumb: (level: Crumb["level"]) => void;

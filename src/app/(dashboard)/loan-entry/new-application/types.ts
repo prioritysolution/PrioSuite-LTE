@@ -30,6 +30,19 @@ export interface IMemberLoanEntry {
     inst_amt?: number;
     resil_amt?: number;
     final_date?: string;
+    has_active_loan?: boolean;
+    active_loan_reason?: string | null;
+    active_account_no?: string | null;
+}
+
+export interface ICreatedLoanAccount {
+    Account_Id: number;
+    Account_No: number | string;
+    Member_Id: number;
+    Member_No: number | string;
+    Member_Name: string;
+    Loan_Cycle: number;
+    Loan_Amount: number | string;
 }
 
 export interface IScheme {

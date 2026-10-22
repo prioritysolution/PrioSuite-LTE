@@ -40,6 +40,7 @@ import { DatePicker } from "@/common/formFields/DatePicker";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import SuccessMessage from "@/common/SuccessMessage";
+import { amountToIndianWords } from "@/lib/numberToWords";
 
 interface IDisbursementDetail {
   Account_Id: number;
@@ -406,20 +407,27 @@ export function DisbursementDetailsScreen({
                     <ScrollBar orientation="horizontal" />
                   </ScrollArea>
 
-                  <div className="bg-primary/5 px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-4">
-                    <div className="flex items-center gap-1.5 text-gray-500 font-bold text-xs uppercase tracking-widest">
-                      <Calculator size={16} />
-                      <span>Total Disbursement Amount</span>
+                  <div className="bg-primary/5 px-6 py-4 border-t border-gray-100 flex flex-col items-end gap-1">
+                    <div className="flex items-center justify-end gap-4">
+                      <div className="flex items-center gap-1.5 text-gray-500 font-bold text-xs uppercase tracking-widest">
+                        <Calculator size={16} />
+                        <span>Total Disbursement Amount</span>
+                      </div>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-primary font-bold text-sm">₹</span>
+                        <span className="font-black text-primary text-2xl tracking-tighter">
+                          {totalAmount.toLocaleString("en-IN", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-primary font-bold text-sm">₹</span>
-                      <span className="font-black text-primary text-2xl tracking-tighter">
-                        {totalAmount.toLocaleString("en-IN", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </span>
-                    </div>
+                    {totalAmount > 0 && (
+                      <p className="text-xs font-semibold italic text-gray-600 text-right">
+                        {amountToIndianWords(totalAmount)}
+                      </p>
+                    )}
                   </div>
                 </div>
 
@@ -487,20 +495,27 @@ export function DisbursementDetailsScreen({
                     </div>
                   ))}
 
-                  <div className="col-span-full bg-primary/5 px-4 py-3 border border-gray-100 rounded-xl flex flex-col sm:flex-row items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5 text-gray-500 font-bold text-xs uppercase tracking-widest">
-                      <Calculator size={16} />
-                      <span>Total Disbursement Amount</span>
+                  <div className="col-span-full bg-primary/5 px-4 py-3 border border-gray-100 rounded-xl flex flex-col gap-1">
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5 text-gray-500 font-bold text-xs uppercase tracking-widest">
+                        <Calculator size={16} />
+                        <span>Total Disbursement Amount</span>
+                      </div>
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-primary font-bold text-sm">₹</span>
+                        <span className="font-black text-primary text-2xl tracking-tighter">
+                          {totalAmount.toLocaleString("en-IN", {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-primary font-bold text-sm">₹</span>
-                      <span className="font-black text-primary text-2xl tracking-tighter">
-                        {totalAmount.toLocaleString("en-IN", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
-                      </span>
-                    </div>
+                    {totalAmount > 0 && (
+                      <p className="text-xs font-semibold italic text-gray-600 text-center sm:text-right">
+                        {amountToIndianWords(totalAmount)}
+                      </p>
+                    )}
                   </div>
                 </div>
               </>
@@ -548,6 +563,7 @@ export function DisbursementDetailsScreen({
                     placeholder="Select disbursement date"
                     isRequired
                     restrictToFinancialYear
+                    showCurrentDate
                   />
                 </div>
               </div>

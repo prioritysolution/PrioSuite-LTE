@@ -2,35 +2,33 @@
 
 import React, { useEffect, useState } from "react";
 import getCookieData from "@/lib/getCookieData";
-import { DemandRow } from "@/container/loan-entry/demand-generation/DemandGenerationType";
-import { formatDemandAmount } from "./DemandGenerationTable";
+import { DemandColumn } from "./DemandGenerationTable";
 
-interface DemandGenerationPrintProps {
+interface DemandGenerationPrintProps<T> {
   printRef: React.RefObject<HTMLDivElement | null>;
-  rows: DemandRow[];
-  sahayikaName: string;
-  groupName: string;
+  title: string;
   branchName: string;
-  demandDate: string;
+  meta: { label: string; value: string }[];
+  columns: DemandColumn<T>[];
+  rows: T[];
+  getRowKey: (row: T, index: number) => string;
 }
 
-const sumAmount = (
-  rows: DemandRow[],
-  key: "currentDemand" | "arrearDemand" | "totalDemand" | "outstanding",
-) =>
-  rows.reduce((total, row) => {
-    const amount = Number(row[key]);
-    return total + (Number.isNaN(amount) ? 0 : amount);
-  }, 0);
+const alignClass = {
+  left: "text-left",
+  right: "text-right",
+  center: "text-center",
+};
 
-const DemandGenerationPrint = ({
+const DemandGenerationPrint = <T,>({
   printRef,
-  rows,
-  sahayikaName,
-  groupName,
+  title,
   branchName,
-  demandDate,
-}: DemandGenerationPrintProps) => {
+  meta,
+  columns,
+  rows,
+  getRowKey,
+}: DemandGenerationPrintProps<T>) => {
   const [userName, setUserName] = useState("");
   const [orgName, setOrgName] = useState("");
   const [printedAt, setPrintedAt] = useState("");
@@ -50,7 +48,8 @@ const DemandGenerationPrint = ({
     );
   }, []);
 
-  const colSpan = 9;
+  const colSpan = columns.length;
+  const hasFooter = columns.some((column) => column.footer !== undefined);
 
   return (
     <div
@@ -95,77 +94,57 @@ const DemandGenerationPrint = ({
           </tr>
           <tr>
             <td colSpan={colSpan} className="font-bold underline uppercase pt-2 pb-3 border-0">
-              Demand Generation
+              {title}
             </td>
           </tr>
-          <tr className="text-[13px]">
-            <td colSpan={3} className="border border-black p-3 text-left">
-              <span className="font-bold">Demand Date:</span> {demandDate || "—"}
-            </td>
-            <td colSpan={3} className="border border-black p-3 text-left">
-              <span className="font-bold">Sahayika:</span> {sahayikaName || "—"}
-            </td>
-            <td colSpan={3} className="border border-black p-3 text-left">
-              <span className="font-bold">Group:</span> {groupName || "—"}
+          <tr>
+            <td colSpan={colSpan} className="border border-black p-3 text-left text-[13px]">
+              {meta.map((item, index) => (
+                <span key={item.label} className={index ? "ml-8" : undefined}>
+                  <span className="font-bold">{item.label}:</span> {item.value || "—"}
+                </span>
+              ))}
             </td>
           </tr>
           <tr>
             <td colSpan={colSpan} className="border-0 h-4" />
           </tr>
           <tr className="bg-slate-100 font-bold">
-            <th className="border border-black p-2 w-[40px]">Sl.</th>
-            <th className="border border-black p-2 text-left">Member</th>
-            <th className="border border-black p-2">Loan Account</th>
-            <th className="border border-black p-2">Installment</th>
-            <th className="border border-black p-2">Due Date</th>
-            <th className="border border-black p-2 text-right">Current</th>
-            <th className="border border-black p-2 text-right">Arrear</th>
-            <th className="border border-black p-2 text-right">Total Demand</th>
-            <th className="border border-black p-2 text-right">Outstanding</th>
+            {columns.map((column) => (
+              <th
+                key={column.key}
+                className={`border border-black p-2 ${alignClass[column.align ?? "left"]}`}
+              >
+                {column.header}
+              </th>
+            ))}
           </tr>
         </thead>
         <tbody>
-          {rows.map((row) => (
-            <tr key={`${row.sl}-${row.memberNo}-${row.accountLabel}`}>
-              <td className="border border-black p-2">{row.sl}</td>
-              <td className="border border-black p-2 text-left">
-                {row.memberName || "-"}
-                {row.memberNo ? ` (${row.memberNo})` : ""}
-              </td>
-              <td className="border border-black p-2">{row.accountLabel || "-"}</td>
-              <td className="border border-black p-2">{row.installmentNo || "-"}</td>
-              <td className="border border-black p-2">{row.dueDate || "-"}</td>
-              <td className="border border-black p-2 text-right">
-                {formatDemandAmount(row.currentDemand)}
-              </td>
-              <td className="border border-black p-2 text-right">
-                {formatDemandAmount(row.arrearDemand)}
-              </td>
-              <td className="border border-black p-2 text-right">
-                {formatDemandAmount(row.totalDemand)}
-              </td>
-              <td className="border border-black p-2 text-right">
-                {formatDemandAmount(row.outstanding)}
-              </td>
+          {rows.map((row, index) => (
+            <tr key={getRowKey(row, index)}>
+              {columns.map((column) => (
+                <td
+                  key={column.key}
+                  className={`border border-black p-2 ${alignClass[column.align ?? "left"]}`}
+                >
+                  {column.render(row, index)}
+                </td>
+              ))}
             </tr>
           ))}
-          <tr className="font-bold">
-            <td colSpan={5} className="border border-black p-2 text-left">
-              Total ({rows.length})
-            </td>
-            <td className="border border-black p-2 text-right">
-              {formatDemandAmount(sumAmount(rows, "currentDemand"))}
-            </td>
-            <td className="border border-black p-2 text-right">
-              {formatDemandAmount(sumAmount(rows, "arrearDemand"))}
-            </td>
-            <td className="border border-black p-2 text-right">
-              {formatDemandAmount(sumAmount(rows, "totalDemand"))}
-            </td>
-            <td className="border border-black p-2 text-right">
-              {formatDemandAmount(sumAmount(rows, "outstanding"))}
-            </td>
-          </tr>
+          {hasFooter && (
+            <tr className="font-bold">
+              {columns.map((column) => (
+                <td
+                  key={column.key}
+                  className={`border border-black p-2 ${alignClass[column.align ?? "left"]}`}
+                >
+                  {column.footer}
+                </td>
+              ))}
+            </tr>
+          )}
         </tbody>
       </table>
 

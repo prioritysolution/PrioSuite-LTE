@@ -149,6 +149,15 @@ export const searchGroupAPI = async (orgId: number, keyword: string, branchId: n
   });
 };
 
+export const getGroupMemberListAPI = async (
+  orgId: number,
+  groupId: number | string,
+) => {
+  return await doGetApiCall({
+    url: endPoints.getGroupMemberList(orgId, groupId),
+  });
+};
+
 export const getGroupListAPI = async (orgId: number, branchId: number) => {
   return await doGetApiCall({
     url: endPoints.getGroupList(orgId, branchId),

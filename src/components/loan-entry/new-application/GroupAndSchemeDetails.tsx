@@ -6,6 +6,7 @@ import {
   getSchemeAPI,
   getGroupDataAPI,
   getGroupMemberAPI,
+  mapGroupMembers,
 } from "@/container/loan-entry/new-application/NewApplicationApi";
 import { getBranchListAPI } from "@/container/loan-reports/detailed-list/DetailedListApi";
 import { useGlobalContext } from "@/context/GlobalContext";
@@ -80,21 +81,11 @@ export const GroupAndSchemeDetails = () => {
       return getGroupMemberAPI(user?.org_id as number, String(groupId));
     },
     onSuccess: (response) => {
-      const membersList = response?.Data || response?.data?.Data;
-      if (!membersList || membersList.length === 0) {
+      const mappedMembers = mapGroupMembers(response);
+      if (mappedMembers.length === 0) {
         toast.error("No members found for this group.");
         return;
       }
-      const mappedMembers = membersList.map((m: any) => ({
-        mem_id: m.Member_Id,
-        member_no: m.Member_No,
-        member_name: m.Member_Name,
-        gurdain_name: m.FatHusb_Name || m.Guardian_Name || "",
-        area: m.Area_Name || "",
-        loan_amount: "",
-        purpose: "",
-        guranter_name: "",
-      }));
       setValue("members", mappedMembers);
       toast.success("Members loaded successfully.");
     },

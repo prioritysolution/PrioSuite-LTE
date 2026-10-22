@@ -8,6 +8,7 @@ import { IGroupFormInput } from "@/app/(dashboard)/manage-profile/group-admissio
 import { BasicAndAdmissionDetails } from "./BasicAndAdmissionDetails";
 import { PaymentAndStatusDetails } from "./PaymentAndStatusDetails";
 import { SearchGroupModal } from "./SearchGroupModal";
+import { GroupMemberList } from "./GroupMemberList";
 import RadioField from "@/common/formFields/RadioFields";
 import InputField from "@/common/formFields/InputField";
 
@@ -48,6 +49,7 @@ export const GroupAdmissionUI: React.FC<GroupAdmissionUIProps> = ({
     defaultValues: { group_no: state.searchId || "" },
   });
   const groupNo = searchMethods.watch("group_no");
+  const groupId = methods.watch("grp_id");
 
   useEffect(() => {
     if ((groupNo ?? "") === state.searchId) return;
@@ -206,6 +208,10 @@ export const GroupAdmissionUI: React.FC<GroupAdmissionUIProps> = ({
               </div>
             </form>
           </FormProvider>
+
+          {state.editMode && groupId ? (
+            <GroupMemberList groupId={groupId} />
+          ) : null}
         </div>
       )}
 

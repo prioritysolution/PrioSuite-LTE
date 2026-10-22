@@ -1,5 +1,9 @@
 import { doGetApiCall, doPostApiCall } from "@/lib/axios";
 import { endPoints } from "@/services/apiEndpoints";
+import {
+  CalcSplitRequestRow,
+  PostCollectionPayload,
+} from "./LoanCollectionType";
 
 export const getGroupListAPI = async (orgId: number, branchId: number) => {
   return await doGetApiCall({
@@ -27,6 +31,30 @@ export const getLoanCycleListAPI = async (
 ) => {
   return await doGetApiCall({
     url: endPoints.getLoanCycleList(orgId, branchId, groupId, memberId),
+  });
+};
+
+/** Group loans with balance > 0 (or only the checked members / accounts) as on `collDate`. */
+export const getCollectionLoanListAPI = async (params: {
+  orgId: number;
+  branchId: number;
+  groupId: string | number;
+  collDate?: string;
+  memberIds?: Array<string | number>;
+  accountIds?: Array<string | number>;
+}) => {
+  return await doGetApiCall({
+    url: endPoints.getCollectionLoanList(params),
+  });
+};
+
+export const calcCollectionSplitAPI = async (
+  orgId: number,
+  collData: CalcSplitRequestRow[],
+) => {
+  return await doPostApiCall({
+    url: endPoints.calcCollectionSplit,
+    bodyData: { org_id: orgId, coll_data: collData },
   });
 };
 
@@ -58,7 +86,7 @@ export const getSchemeListAPI = async (orgId: number) => {
   });
 };
 
-export const postCollectionAPI = async (bodyData: any) => {
+export const postCollectionAPI = async (bodyData: PostCollectionPayload) => {
   return await doPostApiCall({
     url: endPoints.postCollection,
     bodyData,

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useMemo, useState } from "react";
+import { X } from "lucide-react";
 import {
   formatAmount,
   formatApiDate,
@@ -111,12 +112,24 @@ const DemandVsCollectionTable = ({
     <div>
       {view === "member" && (
         <div className="flex flex-wrap items-center gap-2 px-4 py-3">
-          <input
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            placeholder="Search name or member no."
-            className="h-9 rounded-md border border-gray-200 px-3 text-sm"
-          />
+          <div className="relative">
+            <input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="Search name or member no."
+              className="h-9 rounded-md border border-gray-200 pr-8 pl-3 text-sm"
+            />
+            {query && (
+              <button
+                type="button"
+                aria-label="Clear search"
+                onClick={() => setQuery("")}
+                className="absolute top-1/2 right-2 flex h-5 w-5 -translate-y-1/2 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
           {(
             [
               ["all", "All"],

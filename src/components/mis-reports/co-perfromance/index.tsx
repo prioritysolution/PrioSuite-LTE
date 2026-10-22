@@ -9,6 +9,7 @@ import { DatePicker } from "@/common/formFields/DatePicker";
 import DropdownField from "@/common/formFields/DropdownField";
 import {
   CoPerformanceProps,
+  DatePreset,
   LayoutView,
 } from "@/container/mis-reports/co-perfromance/CoPerformanceType";
 import {
@@ -26,6 +27,13 @@ const layouts: { id: LayoutView; label: string }[] = [
   { id: "table", label: "Table" },
   { id: "cards", label: "Cards" },
   { id: "trend", label: "Trend" },
+];
+
+const presets: { id: DatePreset; label: string }[] = [
+  { id: "month", label: "This Month" },
+  { id: "lastMonth", label: "Last Month" },
+  { id: "quarter", label: "This Quarter" },
+  { id: "fy", label: "This Financial Year" },
 ];
 
 const Card = ({
@@ -97,6 +105,7 @@ const CoPerformanceComponent = (props: CoPerformanceProps) => {
     crumbs,
     onShow,
     onPreset,
+    activePreset,
     onLayout,
     onDrill,
     onCrumb,
@@ -184,10 +193,22 @@ const CoPerformanceComponent = (props: CoPerformanceProps) => {
               </Button>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" onClick={() => onPreset("month")}>This Month</Button>
-              <Button type="button" variant="outline" onClick={() => onPreset("lastMonth")}>Last Month</Button>
-              <Button type="button" variant="outline" onClick={() => onPreset("quarter")}>This Quarter</Button>
-              <Button type="button" variant="outline" onClick={() => onPreset("fy")}>This Financial Year</Button>
+              {presets.map((preset) => {
+                const active = activePreset === preset.id;
+                return (
+                  <Button
+                    key={preset.id}
+                    type="button"
+                    variant={active ? "default" : "outline"}
+                    aria-pressed={active}
+                    disabled={loading}
+                    onClick={() => onPreset(preset.id)}
+                    className={active ? "bg-primary text-white hover:bg-primary/90" : undefined}
+                  >
+                    {preset.label}
+                  </Button>
+                );
+              })}
             </div>
           </form>
         </Form>

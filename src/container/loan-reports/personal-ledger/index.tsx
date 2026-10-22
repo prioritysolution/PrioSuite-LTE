@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePersonalLedger } from "./Hooks";
 import PersonalLedgerComponent from "@/components/loan-reports/personal-ledger";
 
@@ -26,8 +26,12 @@ const PersonalLedgerContainer = () => {
   const groupId = methods.watch("groupId");
   const memberId = methods.watch("memberId");
 
+  const groupListFetchKey = useRef<string | null>(null);
   useEffect(() => {
     if (orgId && branchId) {
+      const key = `${orgId}-${branchId}`;
+      if (groupListFetchKey.current === key) return;
+      groupListFetchKey.current = key;
       getAllGroupListAPICall(Number(orgId), branchId);
     }
   }, [orgId, branchId]);

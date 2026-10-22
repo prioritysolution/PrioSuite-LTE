@@ -18,6 +18,13 @@ export const getAllMemberListAPI = async (orgId: number, groupId: string) => {
   return response;
 };
 
+export const getGroupMemberListAPI = async (orgId: number, groupId: string) => {
+  const response = await doGetApiCall({
+    url: endPoints.getGroupMemberList(orgId, groupId),
+  });
+  return response;
+};
+
 export const getLoanCollectionReportAPI = async (
   orgId: number,
   groupId: string,

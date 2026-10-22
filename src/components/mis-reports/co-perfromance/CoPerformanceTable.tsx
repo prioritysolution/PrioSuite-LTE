@@ -205,8 +205,8 @@ const CoPerformanceTable = ({
             </tr>
           </thead>
           <tbody>
-            {sections.map((section) => (
-              <React.Fragment key={section.branch || "all"}>
+            {sections.map((section, sectionIndex) => (
+              <React.Fragment key={`${section.branch || "all"}-${sectionIndex}`}>
                 {grouped && section.branch && (
                   <tr className="bg-gray-50">
                     <td colSpan={more ? 24 : 13} className="px-2 py-1.5 text-xs font-bold tracking-wide text-gray-600 uppercase">

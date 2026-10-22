@@ -1,22 +1,16 @@
 "use client";
 
 import React, { useMemo } from "react";
-import {
-  Banknote,
-  ClipboardList,
-  Loader2,
-  RefreshCw,
-  Save,
-} from "lucide-react";
+import { ClipboardList, RefreshCw } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { Form } from "@/components/ui/form";
 import { Button } from "@/components/ui/button";
 import { DatePicker } from "@/common/formFields/DatePicker";
 import DropdownField from "@/common/formFields/DropdownField";
-import InputField from "@/common/formFields/InputField";
-import SuccessMessage from "@/common/SuccessMessage";
 import { LoanCollectionProps } from "@/container/loan-entry/loan-collection/LoanCollectionType";
 import MemberDetailsSection from "./MemberDetailsSection";
+import PaymentEntrySection from "./PaymentEntrySection";
+import CollectionReceiptDialog from "./CollectionReceiptDialog";
 import { getBranchListAPI } from "@/container/loan-reports/detailed-list/DetailedListApi";
 import { useGlobalContext } from "@/context/GlobalContext";
 
@@ -39,19 +33,22 @@ const LoanCollectionComponent = ({
   onSubmit,
   resetForm,
   groupList,
-  memberList,
+  loanRows,
   isGroupLoading,
-  isMemberLoading,
-  isSplitLoading,
+  isLoanListLoading,
   loading,
-  onToggleCollection,
-  selectedLoans = [],
-  selectedAccountId = null,
-  selectedLoanDate = null,
-  selectedLoanAmount = null,
-  showSuccessMessage = false,
-  successMessage = "",
-  onSuccessClose,
+  entries,
+  rowErrors,
+  totals,
+  canSave,
+  isSplitting,
+  onToggleLoan,
+  onToggleAll,
+  onEntryChange,
+  onRemoveEntry,
+  onClearEntries,
+  collectionResult,
+  onReceiptClose,
 }: LoanCollectionProps) => {
   const { user } = useGlobalContext();
   const {
@@ -60,7 +57,6 @@ const LoanCollectionComponent = ({
 
   const selectedBranchId = form.watch("branchId");
   const selectedGroup = form.watch("groupId");
-  const selectedMemberId = form.watch("memberId");
 
   const { data: branchData, isLoading: branchLoading } = useQuery({
     queryKey: ["branchList", user?.org_id],
@@ -82,6 +78,11 @@ const LoanCollectionComponent = ({
       };
     });
   }, [groupList]);
+
+  const selectedAccountIds = useMemo(
+    () => new Set(entries.map((entry) => entry.accountId)),
+    [entries],
+  );
 
   return (
     <div className="page-content animate-in fade-in slide-in-from-bottom-2 duration-500">
@@ -145,7 +146,6 @@ const LoanCollectionComponent = ({
                 placeholder="Select branch"
                 onChange={() => {
                   form.setValue("groupId", "");
-                  form.setValue("memberId", "");
                 }}
               />
 
@@ -167,131 +167,34 @@ const LoanCollectionComponent = ({
             </div>
           </div>
 
-          {/* Member Details — group-wise list with Collection checkbox */}
           <MemberDetailsSection
-            members={memberList}
-            selectedMemberId={selectedMemberId}
-            selectedAccountId={selectedAccountId}
-            selectedLoanDate={selectedLoanDate}
-            selectedLoanAmount={selectedLoanAmount}
-            isLoading={isMemberLoading}
+            rows={loanRows}
+            selectedAccountIds={selectedAccountIds}
+            isLoading={isLoanListLoading}
             hasGroup={!!selectedGroup}
-            selectedLoans={selectedLoans}
-            onToggleCollection={onToggleCollection}
+            disabled={loading}
+            onToggleLoan={onToggleLoan}
+            onToggleAll={onToggleAll}
           />
 
-          {/* Payment entry */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="bg-primary/5 px-6 py-4 border-b border-gray-100 flex items-center gap-3">
-              <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
-                <Banknote size={18} />
-              </div>
-              <h3 className="font-semibold text-primary text-lg">
-                Payment Entry
-              </h3>
-            </div>
-
-            <div className="p-4 sm:p-5 lg:p-6 form-grid">
-              <InputField
-                control={form.control}
-                name="amount"
-                label="Amount"
-                type="text"
-                placeholder="0.00"
-                isNumeric
-                isRequired
-              />
-
-              <div className="relative">
-                <InputField
-                  control={form.control}
-                  name="principalAmount"
-                  label="Principal Amount"
-                  type="text"
-                  placeholder="0"
-                  disabled
-                />
-                {isSplitLoading && (
-                  <div className="absolute inset-0 top-6 flex items-center justify-center rounded-md bg-white/70">
-                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  </div>
-                )}
-              </div>
-
-              <div className="relative">
-                <InputField
-                  control={form.control}
-                  name="interestAmount"
-                  label="Interest Amount"
-                  type="text"
-                  placeholder="0"
-                  disabled
-                />
-                {isSplitLoading && (
-                  <div className="absolute inset-0 top-6 flex items-center justify-center rounded-md bg-white/70">
-                    <span className="inline-flex items-center gap-2 text-xs font-semibold text-primary">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Calculating...
-                    </span>
-                  </div>
-                )}
-              </div>
-
-              <InputField
-                control={form.control}
-                name="penalAmount"
-                label="Penal Amount"
-                type="text"
-                placeholder="0"
-                disabled
-              />
-
-              <InputField
-                control={form.control}
-                name="refVoucherNo"
-                label="Ref Voucher No"
-                placeholder="Enter ref voucher no"
-              />
-            </div>
-          </div>
-
-          <div className="form-actions">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={resetForm}
-              disabled={loading}
-              className="h-12 px-8 font-bold text-gray-700 border-gray-300 hover:bg-gray-100 rounded-lg transition-all flex items-center gap-2 w-full sm:w-auto"
-            >
-              <RefreshCw size={18} />
-              Reset
-            </Button>
-            <Button
-              type="submit"
-              disabled={loading || !isValid}
-              className="bg-primary hover:bg-primary/90 h-12 px-10 font-bold rounded-lg text-white shadow-md transition-all active:scale-95 flex items-center justify-center gap-2 w-full sm:w-auto"
-            >
-              {loading ? (
-                <Loader2 className="animate-spin" size={20} />
-              ) : (
-                <Save size={20} />
-              )}
-              Save Collection
-            </Button>
-          </div>
+          <PaymentEntrySection
+            control={form.control}
+            entries={entries}
+            rowErrors={rowErrors}
+            totals={totals}
+            saving={loading}
+            isSplitting={isSplitting}
+            saveDisabled={!canSave || !isValid}
+            onEntryChange={onEntryChange}
+            onRemoveEntry={onRemoveEntry}
+            onClear={onClearEntries}
+          />
         </form>
       </Form>
 
-      <SuccessMessage
-        showSuccessMessage={showSuccessMessage}
-        setShowSuccessMessage={(val) => {
-          const open =
-            typeof val === "function" ? val(showSuccessMessage) : val;
-          onSuccessClose?.(open);
-        }}
-        successMessage={successMessage}
-        showNextButton={false}
-        closeLabel="OK"
+      <CollectionReceiptDialog
+        result={collectionResult}
+        onClose={onReceiptClose}
       />
     </div>
   );

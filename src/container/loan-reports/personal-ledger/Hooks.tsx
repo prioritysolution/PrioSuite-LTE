@@ -16,7 +16,7 @@ import {
 } from "./PersonalLedgerReducer";
 import {
   getAllGroupListAPI,
-  getAllMemberListAPI,
+  getGroupMemberListAPI,
   getLoanCollectionReportAPI,
   getLoanCycleListAPI,
 } from "./PersonalLedgerApi";
@@ -120,10 +120,28 @@ export const usePersonalLedger = () => {
     async (org_Id: number, group_Id: string) => {
       try {
         setIsMemberListLoading(true);
-        const res = await getAllMemberListAPI(org_Id, group_Id);
+        const res = await getGroupMemberListAPI(org_Id, group_Id);
+        const list =
+          [res?.Data, res?.details, res?.data?.Data, res?.data].find(
+            Array.isArray,
+          ) ?? [];
 
-        if (res.message === "Data Found") {
-          dispatch(setMemberList(res.Data));
+        if (list.length > 0) {
+          const seen = new Set<string>();
+          const uniqueMembers = list
+            .map((member: any) => ({
+              ...member,
+              Member_Id: member?.Member_Id ?? member?.Mem_Id ?? member?.member_id,
+              Member_Name:
+                member?.Member_Name ?? member?.Mem_Name ?? member?.member_name,
+            }))
+            .filter((member: any) => {
+              const key = String(member?.Member_Id ?? "");
+              if (!key || seen.has(key)) return !key;
+              seen.add(key);
+              return true;
+            });
+          dispatch(setMemberList(uniqueMembers));
         } else {
           dispatch(setMemberList([]));
         }

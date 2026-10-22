@@ -10,6 +10,7 @@ import { useLoanIssue } from "@/container/loan-entry/loan-issue/Hooks";
 import { IDisbursement } from "@/container/loan-entry/loan-issue/LoanIssueType";
 import { Button } from "@/components/ui/button";
 import { getBranchListAPI } from "@/container/loan-reports/detailed-list/DetailedListApi";
+import { getGroupListAPI } from "@/container/loan-entry/loan-issue/LoanIssueApi";
 import { useGlobalContext } from "@/context/GlobalContext";
 import DropdownField from "@/common/formFields/DropdownField";
 
@@ -26,6 +27,18 @@ const extractList = (res: any): any[] => {
   const list = candidates.find((item) => Array.isArray(item));
   return Array.isArray(list) ? list : [];
 };
+
+const pickValue = (row: any, keys: string[]) => {
+  for (const key of keys) {
+    const value = row?.[key];
+    if (value !== undefined && value !== null && String(value).trim() !== "") {
+      return String(value);
+    }
+  }
+  return "";
+};
+
+const AREA_KEYS = ["Area_Name", "Area", "area_name", "Vill_Name"];
 
 type BranchFilterForm = {
   branch_id: string | number | "";
@@ -50,6 +63,38 @@ const LoanIssueComponent = () => {
   });
 
   const branchOptions = useMemo(() => extractList(branchData), [branchData]);
+
+  const { data: groupData } = useQuery({
+    queryKey: ["loanIssueGroupList", user?.org_id, branchIdNum],
+    queryFn: () => getGroupListAPI(user?.org_id as number, branchIdNum),
+    enabled: !!user?.org_id && !!branchIdNum,
+  });
+
+  // GetDisbursementList has no branch/area names, so fill them from the
+  // selected branch and the branch's group list.
+  const enrichedDisbursements = useMemo<IDisbursement[]>(() => {
+    const selectedBranch = branchOptions.find(
+      (branch: any) => Number(branch?.Branch_Id) === branchIdNum,
+    );
+    const branchName = pickValue(selectedBranch, ["Branch_Name", "branch_name"]);
+
+    const areaByGroupId = new Map<number, string>();
+    extractList(groupData).forEach((group: any) => {
+      const groupId = Number(group?.Group_Id ?? group?.Grp_Id ?? group?.grp_id);
+      const area = pickValue(group, AREA_KEYS);
+      if (groupId && area) areaByGroupId.set(groupId, area);
+    });
+
+    return disbursementList.map((item: IDisbursement) => ({
+      ...item,
+      Branch_Name:
+        pickValue(item, ["Branch_Name", "branch_name"]) || branchName,
+      Area_Name:
+        pickValue(item, AREA_KEYS) ||
+        areaByGroupId.get(Number(item.Group_Id)) ||
+        "",
+    }));
+  }, [disbursementList, branchOptions, branchIdNum, groupData]);
 
   useEffect(() => {
     if (branchIdNum) {
@@ -133,7 +178,7 @@ const LoanIssueComponent = () => {
         </div>
       ) : (
         <DisbursementTable
-          disbursements={disbursementList}
+          disbursements={enrichedDisbursements}
           loading={loading}
           onViewDetails={setSelectedDisbursement}
         />

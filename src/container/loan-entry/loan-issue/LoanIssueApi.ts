@@ -10,6 +10,12 @@ export const getDisbursementListAPI = async (
   });
 };
 
+export const getGroupListAPI = async (orgId: number, branchId: number) => {
+  return await doGetApiCall({
+    url: endPoints.getGroupList(orgId, branchId),
+  });
+};
+
 export const getDisbursementDetailsAPI = async (
   orgId: number,
   groupId: number,

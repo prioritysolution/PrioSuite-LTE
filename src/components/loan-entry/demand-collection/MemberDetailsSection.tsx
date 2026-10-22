@@ -1,5 +1,6 @@
 "use client";
 
+import { Fragment } from "react";
 import { format, isValid } from "date-fns";
 import { Loader2, Users } from "lucide-react";
 import {
@@ -13,6 +14,7 @@ import {
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 import {
+  DemandCollectionGroup,
   DemandCollectionMember,
   DemandCollectionSummary,
 } from "@/container/loan-entry/demand-collection/DemandCollectionType";
@@ -20,6 +22,8 @@ import {
 interface MemberDetailsSectionProps {
   members: DemandCollectionMember[];
   summary: DemandCollectionSummary | null;
+  groups: DemandCollectionGroup[];
+  groupWise: boolean;
   loading?: boolean;
   saving?: boolean;
   onAmountChange: (accountId: number, amount: string) => void;
@@ -38,6 +42,66 @@ const formatDate = (value: string) => {
   if (!isValid(date)) return value || "—";
   return format(date, "dd-MM-yyyy");
 };
+
+interface MemberSection {
+  key: string;
+  group: DemandCollectionGroup | null;
+  title: string;
+  rows: { member: DemandCollectionMember; index: number }[];
+}
+
+const buildSections = (
+  members: DemandCollectionMember[],
+  groups: DemandCollectionGroup[],
+  groupWise: boolean,
+): MemberSection[] => {
+  if (!groupWise) {
+    return [
+      {
+        key: "all",
+        group: null,
+        title: "",
+        rows: members.map((member, index) => ({ member, index })),
+      },
+    ];
+  }
+  const sections: MemberSection[] = [];
+  members.forEach((member, index) => {
+    let section = sections[sections.length - 1];
+    if (!section || section.key !== String(member.groupId)) {
+      const group =
+        groups.find((item) => item.groupId === member.groupId) ?? null;
+      const name = group?.groupName || member.groupName || "Group";
+      const no = group?.groupNo || member.groupNo;
+      section = {
+        key: String(member.groupId),
+        group,
+        title: no ? `${name} (${no})` : name,
+        rows: [],
+      };
+      sections.push(section);
+    }
+    section.rows.push({ member, index });
+  });
+  return sections;
+};
+
+const GroupTotals = ({ group }: { group: DemandCollectionGroup }) => (
+  <span className="flex flex-wrap gap-x-4 gap-y-1 text-xs font-semibold text-gray-600">
+    <span>
+      Demand{" "}
+      <span className="text-primary">{formatMoney(group.totalDemand)}</span>
+    </span>
+    <span>
+      Collected{" "}
+      <span className="text-gray-800">{formatMoney(group.collAmount)}</span>
+    </span>
+    <span>
+      Pending{" "}
+      <span className="text-gray-800">{formatMoney(group.pendingDemand)}</span>
+    </span>
+  </span>
+);
 
 const AmountBox = ({
   member,
@@ -73,10 +137,21 @@ const AmountBox = ({
 const MemberDetailsSection = ({
   members,
   summary,
+  groups,
+  groupWise,
   loading,
   saving,
   onAmountChange,
 }: MemberDetailsSectionProps) => {
+  const sections = buildSections(members, groups, groupWise);
+  const groupCount = summary?.groupCount || groups.length;
+  const headerTitle =
+    groupWise && groupCount > 1
+      ? `All Groups (${groupCount})`
+      : [summary?.groupName, summary?.groupNo ? `(${summary.groupNo})` : ""]
+          .filter(Boolean)
+          .join(" ");
+
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
       <div className="bg-primary/5 px-4 sm:px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
@@ -88,11 +163,13 @@ const MemberDetailsSection = ({
             <h3 className="font-semibold text-primary text-lg">
               Member Details
             </h3>
-            <p className="text-xs text-gray-500 font-medium mt-0.5">
-              {summary?.groupName || "Group"}
-              {summary?.groupNo ? ` (${summary.groupNo})` : ""}
-              {summary?.collectionDay ? ` · ${summary.collectionDay}` : ""}
-            </p>
+            {(headerTitle || summary?.collectionDay) && (
+              <p className="text-xs text-gray-500 font-medium mt-0.5">
+                {headerTitle}
+                {headerTitle && summary?.collectionDay ? " · " : ""}
+                {summary?.collectionDay}
+              </p>
+            )}
           </div>
         </div>
         <span className="text-sm font-semibold text-gray-700 shrink-0">
@@ -134,13 +211,15 @@ const MemberDetailsSection = ({
           <div className="flex items-center justify-center h-40 rounded-xl border border-gray-100 bg-slate-50/40">
             <div className="flex flex-col items-center gap-3 text-primary">
               <Loader2 className="h-8 w-8 animate-spin" />
-              <span className="text-sm font-semibold">Loading collection details</span>
+              <span className="text-sm font-semibold">
+                Loading collection details
+              </span>
             </div>
           </div>
         ) : members.length === 0 ? (
           <div className="flex items-center justify-center h-40 rounded-xl border border-gray-100 bg-slate-50/40">
             <p className="text-sm font-medium text-gray-500">
-              No demand found for this group on this date.
+              No demand found on this date.
             </p>
           </div>
         ) : (
@@ -174,44 +253,69 @@ const MemberDetailsSection = ({
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {members.map((member, index) => (
-                      <TableRow
-                        key={`${member.accountId}-${member.memberId}`}
-                        className={cn(member.isCollected && "bg-slate-50/80")}
-                      >
-                        <TableCell className="text-center text-gray-500 font-semibold">
-                          {index + 1}
-                        </TableCell>
-                        <TableCell>
-                          <p className="font-semibold text-primary">
-                            {member.memberName || "—"}
-                          </p>
-                          <p className="text-xs text-gray-400 mt-0.5">
-                            {[member.memberNo, member.guardianName]
-                              .filter(Boolean)
-                              .join(" · ") || "—"}
-                          </p>
-                        </TableCell>
-                        <TableCell className="font-medium text-gray-800">
-                          {member.accountLabel || "—"}
-                        </TableCell>
-                        <TableCell className="whitespace-nowrap text-gray-700">
-                          {member.loanDate ? formatDate(member.loanDate) : "—"}
-                        </TableCell>
-                        <TableCell className="text-right font-semibold text-gray-800 whitespace-nowrap">
-                          {formatMoney(member.outstanding)}
-                        </TableCell>
-                        <TableCell className="text-right font-bold text-primary whitespace-nowrap">
-                          {formatMoney(member.totalDemand)}
-                        </TableCell>
-                        <TableCell>
-                          <AmountBox
-                            member={member}
-                            disabled={saving}
-                            onAmountChange={onAmountChange}
-                          />
-                        </TableCell>
-                      </TableRow>
+                    {sections.map((section) => (
+                      <Fragment key={section.key}>
+                        {groupWise && (
+                          <TableRow className="bg-slate-100/70 hover:bg-slate-100/70">
+                            <TableCell colSpan={7} className="py-2.5">
+                              <div className="flex flex-wrap items-center justify-between gap-2">
+                                <span className="font-bold text-primary">
+                                  {section.title}
+                                  {section.group?.coName
+                                    ? ` · ${section.group.coName}`
+                                    : ""}
+                                </span>
+                                {section.group && (
+                                  <GroupTotals group={section.group} />
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        )}
+                        {section.rows.map(({ member, index }) => (
+                          <TableRow
+                            key={`${member.accountId}-${member.memberId}`}
+                            className={cn(
+                              member.isCollected && "bg-slate-50/80",
+                            )}
+                          >
+                            <TableCell className="text-center text-gray-500 font-semibold">
+                              {index + 1}
+                            </TableCell>
+                            <TableCell>
+                              <p className="font-semibold text-primary">
+                                {member.memberName || "—"}
+                              </p>
+                              <p className="text-xs text-gray-400 mt-0.5">
+                                {[member.memberNo, member.guardianName]
+                                  .filter(Boolean)
+                                  .join(" · ") || "—"}
+                              </p>
+                            </TableCell>
+                            <TableCell className="font-medium text-gray-800">
+                              {member.accountLabel || "—"}
+                            </TableCell>
+                            <TableCell className="whitespace-nowrap text-gray-700">
+                              {member.loanDate
+                                ? formatDate(member.loanDate)
+                                : "—"}
+                            </TableCell>
+                            <TableCell className="text-right font-semibold text-gray-800 whitespace-nowrap">
+                              {formatMoney(member.outstanding)}
+                            </TableCell>
+                            <TableCell className="text-right font-bold text-primary whitespace-nowrap">
+                              {formatMoney(member.totalDemand)}
+                            </TableCell>
+                            <TableCell>
+                              <AmountBox
+                                member={member}
+                                disabled={saving}
+                                onAmountChange={onAmountChange}
+                              />
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </Fragment>
                     ))}
                   </TableBody>
                 </Table>
@@ -219,69 +323,88 @@ const MemberDetailsSection = ({
               </ScrollArea>
             </div>
 
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:hidden">
-              {members.map((member, index) => (
-                <article
-                  key={`${member.accountId}-${member.memberId}`}
-                  className={cn(
-                    "rounded-xl border p-4 space-y-3",
-                    member.isCollected
-                      ? "border-gray-100 bg-slate-50"
-                      : "border-gray-100 bg-white",
+            <div className="space-y-4 lg:hidden">
+              {sections.map((section) => (
+                <div key={section.key} className="space-y-3">
+                  {groupWise && (
+                    <div className="rounded-lg bg-slate-100/70 px-3 py-2.5 space-y-1">
+                      <p className="font-bold text-primary">
+                        {section.title}
+                        {section.group?.coName
+                          ? ` · ${section.group.coName}`
+                          : ""}
+                      </p>
+                      {section.group && <GroupTotals group={section.group} />}
+                    </div>
                   )}
-                >
-                  <div className="min-w-0">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
-                      #{index + 1}
-                      {member.memberNo ? ` · ${member.memberNo}` : ""}
-                    </p>
-                    <h4 className="font-semibold text-primary truncate">
-                      {member.memberName || "—"}
-                    </h4>
-                    <p className="text-sm text-gray-500 truncate">
-                      {member.guardianName || "—"}
-                    </p>
+                  <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                    {section.rows.map(({ member, index }) => (
+                      <article
+                        key={`${member.accountId}-${member.memberId}`}
+                        className={cn(
+                          "rounded-xl border p-4 space-y-3",
+                          member.isCollected
+                            ? "border-gray-100 bg-slate-50"
+                            : "border-gray-100 bg-white",
+                        )}
+                      >
+                        <div className="min-w-0">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                            #{index + 1}
+                            {member.memberNo ? ` · ${member.memberNo}` : ""}
+                          </p>
+                          <h4 className="font-semibold text-primary truncate">
+                            {member.memberName || "—"}
+                          </h4>
+                          <p className="text-sm text-gray-500 truncate">
+                            {member.guardianName || "—"}
+                          </p>
+                        </div>
+                        <dl className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <dt className="text-gray-400 text-xs font-semibold uppercase">
+                              Account
+                            </dt>
+                            <dd className="font-medium text-gray-700">
+                              {member.accountLabel || "—"}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-gray-400 text-xs font-semibold uppercase">
+                              Demand
+                            </dt>
+                            <dd className="font-bold text-primary">
+                              {formatMoney(member.totalDemand)}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-gray-400 text-xs font-semibold uppercase">
+                              Outstanding
+                            </dt>
+                            <dd className="font-semibold text-gray-700">
+                              {formatMoney(member.outstanding)}
+                            </dd>
+                          </div>
+                          <div>
+                            <dt className="text-gray-400 text-xs font-semibold uppercase">
+                              Loan Date
+                            </dt>
+                            <dd className="font-medium text-gray-700">
+                              {member.loanDate
+                                ? formatDate(member.loanDate)
+                                : "—"}
+                            </dd>
+                          </div>
+                        </dl>
+                        <AmountBox
+                          member={member}
+                          disabled={saving}
+                          onAmountChange={onAmountChange}
+                        />
+                      </article>
+                    ))}
                   </div>
-                  <dl className="grid grid-cols-2 gap-3 text-sm">
-                    <div>
-                      <dt className="text-gray-400 text-xs font-semibold uppercase">
-                        Account
-                      </dt>
-                      <dd className="font-medium text-gray-700">
-                        {member.accountLabel || "—"}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-gray-400 text-xs font-semibold uppercase">
-                        Demand
-                      </dt>
-                      <dd className="font-bold text-primary">
-                        {formatMoney(member.totalDemand)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-gray-400 text-xs font-semibold uppercase">
-                        Outstanding
-                      </dt>
-                      <dd className="font-semibold text-gray-700">
-                        {formatMoney(member.outstanding)}
-                      </dd>
-                    </div>
-                    <div>
-                      <dt className="text-gray-400 text-xs font-semibold uppercase">
-                        Loan Date
-                      </dt>
-                      <dd className="font-medium text-gray-700">
-                        {member.loanDate ? formatDate(member.loanDate) : "—"}
-                      </dd>
-                    </div>
-                  </dl>
-                  <AmountBox
-                    member={member}
-                    disabled={saving}
-                    onAmountChange={onAmountChange}
-                  />
-                </article>
+                </div>
               ))}
             </div>
           </>

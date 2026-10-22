@@ -42,8 +42,26 @@ export const getSchemeAPI = async (orgId: number) => {
 
 export const getGroupMemberAPI = async (orgId: number, grpId: string) => {
   return await doGetApiCall({
-    url: endPoints.getGroupMember(orgId, grpId),
+    url: endPoints.getLoanEligibleMember(orgId, grpId),
   });
+};
+
+export const mapGroupMembers = (response: any): any[] => {
+  const membersList = response?.Data || response?.data?.Data;
+  if (!Array.isArray(membersList)) return [];
+  return membersList.map((m: any) => ({
+    mem_id: m.Member_Id,
+    member_no: m.Member_No,
+    member_name: m.Member_Name,
+    gurdain_name: m.FatHusb_Name || m.Guardian_Name || "",
+    area: m.Area_Name || "",
+    loan_amount: "",
+    purpose: "",
+    guranter_name: "",
+    has_active_loan: Number(m.Has_Active_Loan) === 1,
+    active_loan_reason: m.Active_Loan_Reason ?? null,
+    active_account_no: m.Active_Account_No ?? null,
+  }));
 };
 
 export const getLoanPurposeAPI = async (orgId: number) => {

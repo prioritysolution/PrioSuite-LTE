@@ -111,6 +111,7 @@ const SideBar = ({
               src="/logobg1.png"
               alt="Logo"
               fill
+              sizes="256px"
               className="object-cover object-left px-2 py-1"
               priority
             />
@@ -133,6 +134,7 @@ const SideBar = ({
             src="/logobg1.png"
             alt="Logo"
             fill
+            sizes="256px"
             className="object-cover object-left px-2 py-1"
             priority
           />

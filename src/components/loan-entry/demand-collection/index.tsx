@@ -11,13 +11,15 @@ import MemberDetailsSection from "./MemberDetailsSection";
 const DemandCollectionUI = ({
   form,
   coOptions,
-  groupOptions,
+  demandOptions,
   coLoading,
-  groupLoading,
+  demandLoading,
   detailsLoading,
   saving,
   members,
   summary,
+  groups,
+  groupWise,
   showMembers,
   onAmountChange,
   onCollectionDetails,
@@ -25,19 +27,8 @@ const DemandCollectionUI = ({
   onReset,
   onSahayikaChange,
 }: DemandCollectionProps) => {
-  const selectedCoId = form.watch("co_id");
-  const selectedGroupId = form.watch("group_id");
   const collectionDate = form.watch("collectionDate");
-  const sahayikaSelected =
-    selectedCoId !== "" &&
-    selectedCoId !== null &&
-    selectedCoId !== undefined;
-  const groupSelected =
-    selectedGroupId !== "" &&
-    selectedGroupId !== null &&
-    selectedGroupId !== undefined;
-  const canLoadDetails =
-    !!collectionDate && sahayikaSelected && groupSelected && !detailsLoading;
+  const canLoadDetails = !!collectionDate && !detailsLoading;
   const hasPayable = members.some(
     (member) => !member.isCollected && Number(member.payAmount) > 0,
   );
@@ -54,18 +45,6 @@ const DemandCollectionUI = ({
             Review group demand by Sahayika and collection date
           </p>
         </div>
-
-        <div className="flex flex-col md:flex-row items-center gap-4 z-10 w-full xl:w-auto">
-          <Button
-            type="button"
-            onClick={onReset}
-            disabled={saving}
-            className="h-12 px-8 text-[15px] font-bold tracking-wide w-full md:w-auto bg-primary hover:bg-[#024786] text-white rounded-lg shadow-sm transition-all flex items-center justify-center gap-2"
-          >
-            <RefreshCw size={18} />
-            Reset
-          </Button>
-        </div>
       </div>
 
       <Form {...form}>
@@ -80,7 +59,7 @@ const DemandCollectionUI = ({
               </h3>
             </div>
 
-            <div className="p-4 sm:p-5 lg:p-6 form-grid">
+            <div className="p-4 sm:p-5 lg:p-6 form-grid items-start">
               <DatePicker
                 control={form.control}
                 name="collectionDate"
@@ -94,39 +73,45 @@ const DemandCollectionUI = ({
                 control={form.control}
                 name="co_id"
                 label="Sahayika"
+                className="space-y-0"
                 options={coOptions}
                 optionLabelKey="label"
                 optionValueKey="value"
                 isSearch
-                isRequired
                 loading={coLoading}
-                placeholder="Select Sahayika"
+                placeholder="All Sahayika"
                 onChange={() => onSahayikaChange()}
               />
 
               <DropdownField
                 control={form.control}
                 name="group_id"
-                label="Group"
-                options={groupOptions}
+                label="Demand"
+                className="space-y-0"
+                options={demandOptions}
                 optionLabelKey="label"
                 optionValueKey="value"
                 isSearch
-                isRequired
-                loading={sahayikaSelected && groupLoading}
-                disabled={!sahayikaSelected}
-                placeholder={
-                  sahayikaSelected
-                    ? groupOptions.length
-                      ? "Select group"
-                      : "No groups for this Sahayika"
-                    : "Select Sahayika first"
-                }
+                disableSorting
+                loading={!!collectionDate && demandLoading}
+                disabled={!collectionDate}
+                placeholder="All Demands"
+                searchPlaceholder="Search demand..."
               />
             </div>
 
             <div className="px-4 sm:px-5 lg:px-6 pb-4 sm:pb-5 lg:pb-6">
               <div className="form-actions">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={onReset}
+                  disabled={saving}
+                  className="h-11 px-5 border-gray-200 hover:bg-gray-50 text-gray-700 font-semibold rounded-lg shadow-sm transition-all flex items-center justify-center gap-2 w-full sm:w-auto"
+                >
+                  <RefreshCw size={16} />
+                  Reset
+                </Button>
                 <Button
                   type="button"
                   onClick={onCollectionDetails}
@@ -144,6 +129,8 @@ const DemandCollectionUI = ({
             <MemberDetailsSection
               members={members}
               summary={summary}
+              groups={groups}
+              groupWise={groupWise}
               loading={detailsLoading}
               saving={saving}
               onAmountChange={onAmountChange}

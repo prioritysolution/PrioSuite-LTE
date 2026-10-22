@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
-import { Loader2, Users } from "lucide-react";
+import { Loader2, Search, Users, X } from "lucide-react";
 import {
   Table,
   TableBody,
@@ -13,41 +13,16 @@ import {
 } from "@/components/ui/table";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
-import type {
-  LoanRowMeta,
-  SelectedLoan,
-} from "@/container/loan-entry/loan-collection/LoanCollectionType";
-
-export interface MemberRow {
-  Member_Id: string | number;
-  Member_No: string;
-  Member_Name: string;
-  Guardian_Name?: string;
-  Area_Name?: string;
-  Loan_Date?: string;
-  Loan_Amount?: string | number;
-  Installment_Amt?: string | number;
-  Current_Balance?: string | number;
-  Account_Id?: string | number | null;
-  Loan_Cycle?: string | number;
-  rowKey: string;
-  raw: any;
-}
+import type { CollectionLoanRow } from "@/container/loan-entry/loan-collection/LoanCollectionType";
 
 interface MemberDetailsSectionProps {
-  members: any[];
-  selectedMemberId: string | number;
-  selectedLoans?: SelectedLoan[];
-  selectedAccountId?: string | number | null;
-  selectedLoanDate?: string | null;
-  selectedLoanAmount?: string | number | null;
+  rows: CollectionLoanRow[];
+  selectedAccountIds: Set<number>;
   isLoading?: boolean;
   hasGroup: boolean;
-  onToggleCollection: (
-    memberId: string | number,
-    checked: boolean,
-    meta?: LoanRowMeta,
-  ) => void;
+  disabled?: boolean;
+  onToggleLoan: (row: CollectionLoanRow, checked: boolean) => void;
+  onToggleAll: (checked: boolean) => void;
 }
 
 const formatMoney = (value: unknown) => {
@@ -71,149 +46,96 @@ const formatDate = (value: unknown) => {
   }
 };
 
-const pick = (row: any, keys: string[]) => {
-  for (const key of keys) {
-    const val = row?.[key];
-    if (val !== undefined && val !== null && String(val).trim() !== "") {
-      return val;
-    }
-  }
-  return "";
+const SelectAllCheckbox = ({
+  checked,
+  indeterminate,
+  disabled,
+  onChange,
+}: {
+  checked: boolean;
+  indeterminate: boolean;
+  disabled?: boolean;
+  onChange: (checked: boolean) => void;
+}) => {
+  const ref = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (ref.current) ref.current.indeterminate = indeterminate;
+  }, [indeterminate]);
+
+  return (
+    <input
+      ref={ref}
+      type="checkbox"
+      aria-label="Select all loans"
+      checked={checked}
+      disabled={disabled}
+      onChange={(event) => onChange(event.target.checked)}
+      className="h-4 w-4 rounded border-input text-primary focus:ring-ring cursor-pointer disabled:cursor-not-allowed"
+    />
+  );
 };
 
 export const MemberDetailsSection = ({
-  members,
-  selectedMemberId,
-  selectedLoans = [],
-  selectedAccountId = null,
-  selectedLoanDate = null,
-  selectedLoanAmount = null,
+  rows,
+  selectedAccountIds,
   isLoading,
   hasGroup,
-  onToggleCollection,
+  disabled = false,
+  onToggleLoan,
+  onToggleAll,
 }: MemberDetailsSectionProps) => {
-  const rows: MemberRow[] = useMemo(() => {
-    return (members || []).map((item, index) => {
-      const id = pick(item, ["Member_Id", "Mem_Id", "mem_id"]);
-      const accountId = pick(item, [
-        "Account_Id",
-        "Acc_Id",
-        "account_id",
-        "Loan_Acc_Id",
-        "Accnt_Id",
-      ]);
-      const loanCycle = pick(item, ["Loan_Cycle", "Ln_Cycle", "loan_cycle"]);
-      const no = String(
-        pick(item, [
-          "Member_No",
-          "Mem_No",
-          "mem_no",
-          "Member_Code",
-          "Mem_Code",
-          "Acc_No",
-        ]) || "",
-      );
-      const name = String(
-        pick(item, ["Member_Name", "Mem_Name", "mem_name"]) || "",
-      );
-      const loanDate = pick(item, ["Loan_Date", "loan_date", "Disb_Date"]) || "";
-      const loanAmount = pick(item, [
-        "Loan_Amount",
-        "Sanc_Amount",
-        "Disb_Amount",
-      ]);
-      return {
-        Member_Id: id,
-        Member_No: no,
-        Member_Name: name,
-        Guardian_Name: String(
-          pick(item, ["FatHusb_Name", "Guardian_Name", "Gurdain_Name"]) || "",
-        ),
-        Area_Name: String(pick(item, ["Area_Name", "Area", "Vill_Name"]) || ""),
-        Loan_Date: loanDate,
-        Loan_Amount: loanAmount,
-        Installment_Amt: pick(item, [
-          "Installment_Amt",
-          "Inst_Amount",
-          "Inst_Amt",
-        ]),
-        Current_Balance: pick(item, [
-          "Outs_Amount",
-          "Outstanding_Balance",
-          "Curr_Balance",
-          "Current_Balance",
-          "Curr_Bal",
-          "Realisable_Amt",
-          "Resilable_Amt",
-          "Balance",
-        ]),
-        Account_Id: accountId || null,
-        Loan_Cycle: loanCycle || "",
-        rowKey: [
-          id || "m",
-          accountId || "a",
-          loanCycle || "c",
-          loanDate || "d",
-          loanAmount || "amt",
-          index,
-        ].join("-"),
-        raw: item,
-      };
-    });
-  }, [members]);
+  const [search, setSearch] = useState("");
+  const query = search.trim().toLowerCase();
+  const isSearching = query.length > 0;
 
-  const toRowMeta = (row: MemberRow): LoanRowMeta => ({
-    accountId: row.Account_Id,
-    loanDate: row.Loan_Date || "",
-    loanAmount: row.Loan_Amount ?? "",
-  });
+  const visibleRows = useMemo(() => {
+    const indexed = rows.map((row, index) => ({ row, index }));
+    if (!query) return indexed;
+    return indexed.filter(({ row }) =>
+      [row.memberName, row.memberNo, row.accountNo].some((value) =>
+        String(value ?? "")
+          .toLowerCase()
+          .includes(query),
+      ),
+    );
+  }, [rows, query]);
 
-  const loanMatches = (row: MemberRow, loan: SelectedLoan) => {
-    if (String(loan.memberId) !== String(row.Member_Id)) return false;
-    if (
-      loan.accountId !== null &&
-      loan.accountId !== undefined &&
-      loan.accountId !== "" &&
-      row.Account_Id !== null &&
-      row.Account_Id !== undefined &&
-      row.Account_Id !== ""
-    ) {
-      return String(loan.accountId) === String(row.Account_Id);
-    }
-    const sameDate =
-      !loan.loanDate ||
-      !row.Loan_Date ||
-      String(loan.loanDate).slice(0, 10) === String(row.Loan_Date).slice(0, 10);
-    const sameAmt =
-      loan.loanAmount == null ||
-      loan.loanAmount === "" ||
-      row.Loan_Amount == null ||
-      row.Loan_Amount === "" ||
-      Number(loan.loanAmount) === Number(row.Loan_Amount);
-    return sameDate && sameAmt;
+  const selectedCount = visibleRows.filter(({ row }) =>
+    selectedAccountIds.has(row.accountId),
+  ).length;
+  const allSelected =
+    visibleRows.length > 0 && selectedCount === visibleRows.length;
+  const someSelected = selectedCount > 0 && !allSelected;
+  const memberCount = new Set(rows.map((row) => row.memberId)).size;
+
+  const toggle = (row: CollectionLoanRow) => {
+    if (disabled) return;
+    onToggleLoan(row, !selectedAccountIds.has(row.accountId));
   };
 
-  const isRowSelected = (row: MemberRow) => {
-    const hasValidId =
-      row.Member_Id !== "" &&
-      row.Member_Id !== null &&
-      row.Member_Id !== undefined;
-    if (!hasValidId) return false;
-    if (selectedLoans.length > 0) {
-      return selectedLoans.some((loan) => loanMatches(row, loan));
+  const toggleAll = (checked: boolean) => {
+    if (!isSearching) {
+      onToggleAll(checked);
+      return;
     }
-    if (selectedMemberId === "" || selectedMemberId == null) return false;
-    return loanMatches(row, {
-      memberId: selectedMemberId,
-      accountId: selectedAccountId,
-      loanDate: selectedLoanDate,
-      loanAmount: selectedLoanAmount,
+    visibleRows.forEach(({ row }) => {
+      if (selectedAccountIds.has(row.accountId) !== checked) {
+        onToggleLoan(row, checked);
+      }
     });
   };
+
+  const loanHint = (row: CollectionLoanRow) =>
+    [
+      row.loanCycle ? `Cycle ${row.loanCycle}` : "",
+      `Acct ${row.accountNo || "N/A"}`,
+    ]
+      .filter(Boolean)
+      .join(" • ");
 
   return (
     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-      <div className="bg-primary/5 px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-3">
+      <div className="bg-primary/5 px-6 py-4 border-b border-gray-100 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div className="flex items-center gap-3">
           <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
             <Users size={18} />
@@ -223,14 +145,43 @@ export const MemberDetailsSection = ({
               Member Details
             </h3>
             <p className="text-xs text-gray-500 font-medium mt-0.5">
-              Select one or more members using the Collection checkbox
+              Check one or more loans to add them to Payment Entry
             </p>
           </div>
         </div>
         {hasGroup && (
-          <span className="text-sm font-semibold text-gray-700">
-            {rows.length} {rows.length === 1 ? "member" : "members"}
-          </span>
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+            <div className="relative w-full sm:w-72">
+              <Search
+                size={16}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              />
+              <input
+                type="text"
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search member name / no..."
+                aria-label="Search members"
+                autoComplete="off"
+                className="h-9 w-full rounded-md border border-gray-200 bg-white pl-9 pr-8 text-sm text-gray-800 outline-none placeholder:text-gray-400 focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+              {search && (
+                <button
+                  type="button"
+                  onClick={() => setSearch("")}
+                  aria-label="Clear search"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:text-gray-600"
+                >
+                  <X size={14} />
+                </button>
+              )}
+            </div>
+            <span className="text-sm font-semibold text-gray-700 whitespace-nowrap sm:text-right">
+              {isSearching && `${visibleRows.length} of `}
+              {rows.length} {rows.length === 1 ? "loan" : "loans"} /{" "}
+              {memberCount} {memberCount === 1 ? "member" : "members"}
+            </span>
+          </div>
         )}
       </div>
 
@@ -241,7 +192,7 @@ export const MemberDetailsSection = ({
               Select a group to load member details.
             </p>
           </div>
-        ) : isLoading ? (
+        ) : isLoading && rows.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-[220px] rounded-xl border border-gray-100 bg-slate-50/50 gap-3 text-primary">
             <Loader2 className="h-8 w-8 animate-spin" />
             <span className="text-sm font-bold tracking-wider animate-pulse uppercase text-primary/80">
@@ -251,24 +202,47 @@ export const MemberDetailsSection = ({
         ) : rows.length === 0 ? (
           <div className="flex items-center justify-center h-[160px] rounded-xl border border-gray-100 bg-slate-50/40">
             <p className="text-sm font-medium text-gray-500">
-              No members found for this group.
+              No loans with an outstanding balance in this group.
+            </p>
+          </div>
+        ) : visibleRows.length === 0 ? (
+          <div className="flex items-center justify-center h-[160px] rounded-xl border border-gray-100 bg-slate-50/40">
+            <p className="text-sm font-medium text-gray-500">
+              No members match &quot;{search.trim()}&quot;.
             </p>
           </div>
         ) : (
-          <>
+          <div className={cn("relative", isLoading && "opacity-60")}>
+            {isLoading && (
+              <div className="absolute right-3 top-3 z-10 text-primary">
+                <Loader2 className="h-4 w-4 animate-spin" />
+              </div>
+            )}
+
             {/* Desktop table */}
             <div className="hidden lg:block overflow-hidden rounded-xl border border-gray-100">
               <ScrollArea className="w-full">
                 <Table>
                   <TableHeader>
                     <TableRow className="bg-primary/5 hover:bg-primary/5">
+                      <TableHead className="w-[110px] text-center font-bold text-primary">
+                        <label className="inline-flex items-center justify-center gap-2 cursor-pointer select-none">
+                          <SelectAllCheckbox
+                            checked={allSelected}
+                            indeterminate={someSelected}
+                            disabled={disabled}
+                            onChange={toggleAll}
+                          />
+                          <span className="text-xs">Collect</span>
+                        </label>
+                      </TableHead>
                       <TableHead className="w-12 text-center font-bold text-primary">
                         Sl
                       </TableHead>
                       <TableHead className="min-w-[110px] font-bold text-primary">
                         Member No
                       </TableHead>
-                      <TableHead className="min-w-[160px] font-bold text-primary">
+                      <TableHead className="min-w-[180px] font-bold text-primary">
                         Member Name
                       </TableHead>
                       <TableHead className="min-w-[120px] font-bold text-primary">
@@ -283,102 +257,60 @@ export const MemberDetailsSection = ({
                       <TableHead className="min-w-[120px] text-right font-bold text-primary">
                         Balance
                       </TableHead>
-                      <TableHead className="w-[120px] text-center font-bold text-primary">
-                        Collection
-                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {rows.map((row, index) => {
-                      const hasValidId =
-                        row.Member_Id !== "" &&
-                        row.Member_Id !== null &&
-                        row.Member_Id !== undefined;
-                      const isChecked = isRowSelected(row);
+                    {visibleRows.map(({ row, index }) => {
+                      const isChecked = selectedAccountIds.has(row.accountId);
+                      const hint = loanHint(row);
                       return (
                         <TableRow
-                          key={row.rowKey}
+                          key={row.accountId}
                           className={cn(
                             isChecked && "bg-primary/5",
-                            hasValidId
-                              ? "cursor-pointer"
-                              : "cursor-not-allowed opacity-60",
+                            disabled ? "cursor-not-allowed" : "cursor-pointer",
                           )}
-                          onClick={() => {
-                            if (!hasValidId) return;
-                            onToggleCollection(
-                              row.Member_Id,
-                              !isChecked,
-                              toRowMeta(row),
-                            );
-                          }}
+                          onClick={() => toggle(row)}
                         >
+                          <TableCell className="text-center">
+                            <input
+                              type="checkbox"
+                              aria-label={`Collect ${row.memberName}`}
+                              checked={isChecked}
+                              disabled={disabled}
+                              readOnly
+                              className="h-4 w-4 rounded border-input text-primary focus:ring-ring cursor-pointer disabled:cursor-not-allowed pointer-events-none"
+                            />
+                          </TableCell>
                           <TableCell className="text-center text-gray-500 font-semibold">
                             {index + 1}
                           </TableCell>
                           <TableCell className="font-medium text-gray-800">
-                            {row.Member_No || "—"}
+                            {row.memberNo || "—"}
                           </TableCell>
                           <TableCell>
                             <div className="min-w-0">
                               <p className="font-semibold text-primary truncate">
-                                {row.Member_Name || "—"}
+                                {row.memberName || "—"}
                               </p>
-                              {(row.Guardian_Name || row.Area_Name) && (
-                                <p className="text-xs text-gray-400 truncate mt-0.5">
-                                  {[row.Guardian_Name, row.Area_Name]
-                                    .filter(Boolean)
-                                    .join(" • ")}
+                              {hint && (
+                                <p className="text-xs text-gray-400 break-words mt-0.5">
+                                  {hint}
                                 </p>
                               )}
                             </div>
                           </TableCell>
                           <TableCell className="whitespace-nowrap text-gray-700">
-                            {formatDate(row.Loan_Date)}
+                            {formatDate(row.loanDate)}
                           </TableCell>
                           <TableCell className="text-right font-medium text-gray-800 whitespace-nowrap">
-                            {formatMoney(row.Loan_Amount)}
+                            {formatMoney(row.loanAmount)}
                           </TableCell>
                           <TableCell className="text-right font-medium text-gray-800 whitespace-nowrap">
-                            {formatMoney(row.Installment_Amt)}
+                            {formatMoney(row.installmentAmt)}
                           </TableCell>
                           <TableCell className="text-right font-semibold text-primary whitespace-nowrap">
-                            {formatMoney(row.Current_Balance)}
-                          </TableCell>
-                          <TableCell
-                            className="text-center"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <label
-                              className={cn(
-                                "inline-flex items-center justify-center gap-2 select-none",
-                                hasValidId
-                                  ? "cursor-pointer"
-                                  : "cursor-not-allowed",
-                              )}
-                              onClick={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                if (!hasValidId) return;
-                                onToggleCollection(
-                                  row.Member_Id,
-                                  !isChecked,
-                                  toRowMeta(row),
-                                );
-                              }}
-                            >
-                              <input
-                                type="checkbox"
-                                name="loan-collection-member"
-                                checked={isChecked}
-                                disabled={!hasValidId}
-                                readOnly
-                                className="h-4 w-4 rounded border-input text-primary focus:ring-ring cursor-pointer disabled:cursor-not-allowed pointer-events-none"
-                              />
-                              <span className="text-xs font-semibold text-gray-600">
-                                Collect
-                              </span>
-                            </label>
+                            {formatMoney(row.balance)}
                           </TableCell>
                         </TableRow>
                       );
@@ -390,104 +322,89 @@ export const MemberDetailsSection = ({
             </div>
 
             {/* Mobile cards */}
-            <div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:hidden">
-              {rows.map((row, index) => {
-                const hasValidId =
-                  row.Member_Id !== "" &&
-                  row.Member_Id !== null &&
-                  row.Member_Id !== undefined;
-                const isChecked = isRowSelected(row);
-                return (
-                  <div
-                    key={row.rowKey}
-                    className={cn(
-                      "rounded-xl border p-4 shadow-sm transition-colors",
-                      isChecked
-                        ? "border-primary/30 bg-primary/5"
-                        : "border-gray-100 bg-white",
-                      hasValidId ? "cursor-pointer" : "opacity-60",
-                    )}
-                    onClick={() => {
-                      if (!hasValidId) return;
-                      onToggleCollection(
-                        row.Member_Id,
-                        !isChecked,
-                        toRowMeta(row),
-                      );
-                    }}
-                  >
-                    <div className="flex items-start justify-between gap-3 border-b border-gray-100 pb-3">
-                      <div className="min-w-0">
-                        <p className="text-xs text-gray-400 font-medium">
-                          #{index + 1} · {row.Member_No || "—"}
-                        </p>
-                        <p className="font-semibold text-primary truncate">
-                          {row.Member_Name || "—"}
-                        </p>
-                      </div>
-                      <label
-                        className={cn(
-                          "inline-flex items-center gap-2 select-none shrink-0",
-                          hasValidId
-                            ? "cursor-pointer"
-                            : "cursor-not-allowed",
-                        )}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          if (!hasValidId) return;
-                          onToggleCollection(
-                            row.Member_Id,
-                            !isChecked,
-                            toRowMeta(row),
-                          );
-                        }}
-                      >
-                        <input
-                          type="checkbox"
-                          name="loan-collection-member-mobile"
-                          checked={isChecked}
-                          disabled={!hasValidId}
-                          readOnly
-                          className="h-4 w-4 rounded border-input text-primary focus:ring-ring cursor-pointer disabled:cursor-not-allowed pointer-events-none"
-                        />
-                        <span className="text-xs font-semibold text-gray-600">
-                          Collect
+            <div className="lg:hidden space-y-3">
+              <label className="flex items-center gap-2 px-1 text-sm font-semibold text-gray-700 select-none cursor-pointer">
+                <SelectAllCheckbox
+                  checked={allSelected}
+                  indeterminate={someSelected}
+                  disabled={disabled}
+                  onChange={toggleAll}
+                />
+                Select all
+              </label>
+              <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+                {visibleRows.map(({ row, index }) => {
+                  const isChecked = selectedAccountIds.has(row.accountId);
+                  const hint = loanHint(row);
+                  return (
+                    <div
+                      key={row.accountId}
+                      className={cn(
+                        "rounded-xl border p-4 shadow-sm transition-colors",
+                        isChecked
+                          ? "border-primary/30 bg-primary/5"
+                          : "border-gray-100 bg-white",
+                        disabled ? "cursor-not-allowed" : "cursor-pointer",
+                      )}
+                      onClick={() => toggle(row)}
+                    >
+                      <div className="flex items-start justify-between gap-3 border-b border-gray-100 pb-3">
+                        <div className="min-w-0">
+                          <p className="text-xs text-gray-400 font-medium">
+                            #{index + 1} · {row.memberNo || "—"}
+                            {hint ? ` · ${hint}` : ""}
+                          </p>
+                          <p className="font-semibold text-primary truncate">
+                            {row.memberName || "—"}
+                          </p>
+                        </div>
+                        <span className="inline-flex items-center gap-2 select-none shrink-0">
+                          <input
+                            type="checkbox"
+                            aria-label={`Collect ${row.memberName}`}
+                            checked={isChecked}
+                            disabled={disabled}
+                            readOnly
+                            className="h-4 w-4 rounded border-input text-primary focus:ring-ring pointer-events-none"
+                          />
+                          <span className="text-xs font-semibold text-gray-600">
+                            Collect
+                          </span>
                         </span>
-                      </label>
-                    </div>
+                      </div>
 
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                      <div>
-                        <p className="text-xs text-gray-400">Loan Date</p>
-                        <p className="font-medium text-gray-800">
-                          {formatDate(row.Loan_Date)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-400">Loan Amount</p>
-                        <p className="font-semibold text-gray-800">
-                          {formatMoney(row.Loan_Amount)}
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-400">Installment</p>
-                        <p className="font-medium text-gray-800">
-                          {formatMoney(row.Installment_Amt)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-400">Balance</p>
-                        <p className="font-semibold text-primary">
-                          {formatMoney(row.Current_Balance)}
-                        </p>
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <p className="text-xs text-gray-400">Loan Date</p>
+                          <p className="font-medium text-gray-800">
+                            {formatDate(row.loanDate)}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-400">Loan Amount</p>
+                          <p className="font-semibold text-gray-800">
+                            {formatMoney(row.loanAmount)}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-400">Installment</p>
+                          <p className="font-medium text-gray-800">
+                            {formatMoney(row.installmentAmt)}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-gray-400">Balance</p>
+                          <p className="font-semibold text-primary">
+                            {formatMoney(row.balance)}
+                          </p>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </>
+          </div>
         )}
       </div>
     </div>
