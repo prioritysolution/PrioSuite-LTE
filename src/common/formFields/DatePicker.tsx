@@ -59,6 +59,9 @@ interface DatePickerProps<T extends FieldValues> {
   rules?: any;
   /** Keyboard typing plus calendar icon. Defaults to true for date fields. */
   isManualInput?: boolean;
+  /** Earliest / latest selectable day (inclusive). */
+  minDate?: Date | null;
+  maxDate?: Date | null;
 }
 
 type DateMask = {
@@ -158,6 +161,8 @@ export function DatePicker<T extends FieldValues>({
   onChange,
   rules,
   isManualInput = true,
+  minDate,
+  maxDate,
 }: DatePickerProps<T>) {
   const [open, setOpen] = React.useState(false);
   const isEditingRef = React.useRef(false);
@@ -417,6 +422,9 @@ export function DatePicker<T extends FieldValues>({
       if (finStartDate && isBefore(target, finStartDate)) return true;
       if (finEndDate && isAfter(target, finEndDate)) return true;
     }
+
+    if (minDate && isBefore(target, startOfDay(minDate))) return true;
+    if (maxDate && isAfter(target, startOfDay(maxDate))) return true;
 
     return false;
   };

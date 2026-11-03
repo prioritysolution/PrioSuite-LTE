@@ -1,15 +1,15 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch } from "react-redux";
-import { useQueryClient, QueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, QueryClient } from "@tanstack/react-query";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useForm } from "react-hook-form";
 import * as yup from "yup";
 import { format } from "date-fns";
 import getCookieData from "@/lib/getCookieData";
 import { AppDispatch } from "@/redux/store";
-import { IssueRegisterForm } from "./IssueRegisterType";
+import { IssueRegisterForm, IssueRegisterGroupOption } from "./IssueRegisterType";
 import {
   getBranchListAPI,
   getCoListAPI,
@@ -1105,9 +1105,42 @@ export const useIssueRegister = () => {
       fromDate: "",
       toDate: "",
       branch: "",
+      group: "",
     },
     resolver: yupResolver(schema) as any,
   });
+
+  const selectedBranchId = Number(methods.watch("branch") || 0);
+
+  const groupQuery = useQuery({
+    queryKey: ["issue-register", "groups", Number(orgId), selectedBranchId],
+    queryFn: () => getGroupListAPI(Number(orgId), selectedBranchId),
+    enabled: Boolean(orgId) && selectedBranchId > 0,
+    staleTime: LOOKUP_STALE_MS,
+  });
+
+  const groupOptions: IssueRegisterGroupOption[] = useMemo(
+    () =>
+      extractList(groupQuery.data)
+        .map((group) => {
+          const name = String(pick(group, GROUP_NAME_KEYS) || "").trim();
+          const no = String(pick(group, ["Group_No", "Grp_No", "group_no"]) || "").trim();
+          return {
+            label: [name, no ? `(${no})` : ""].filter(Boolean).join(" "),
+            value: Number(pick(group, GROUP_ID_KEYS)),
+          };
+        })
+        .filter((option) => option.label !== "" && option.value > 0),
+    [groupQuery.data],
+  );
+
+  // A group belongs to one branch: clear it when the branch changes
+  const lastBranchRef = useRef(selectedBranchId);
+  useEffect(() => {
+    if (lastBranchRef.current === selectedBranchId) return;
+    lastBranchRef.current = selectedBranchId;
+    methods.setValue("group", "");
+  }, [methods, selectedBranchId]);
 
   const resetForm = () => {
     searchGenRef.current += 1;
@@ -1115,6 +1148,7 @@ export const useIssueRegister = () => {
       fromDate: "",
       toDate: "",
       branch: "",
+      group: "",
     });
     dispatch(setIssueRegisterList(null));
   };
@@ -1151,6 +1185,7 @@ export const useIssueRegister = () => {
     fromDate: string,
     toDate: string,
     searchId: number,
+    groupId?: number,
   ) => {
     if (!orgId || !branchId) {
       dispatch(setIssueRegisterList([]));
@@ -1164,6 +1199,7 @@ export const useIssueRegister = () => {
         branchId,
         fromDate,
         toDate,
+        groupId,
       );
 
       if (searchId !== searchGenRef.current) return;
@@ -1221,6 +1257,7 @@ export const useIssueRegister = () => {
         formatFormDate(data.fromDate),
         formatFormDate(data.toDate),
         searchId,
+        Number(data.group) > 0 ? Number(data.group) : undefined,
       );
     } catch (error) {
       console.log(error);
@@ -1234,5 +1271,7 @@ export const useIssueRegister = () => {
     onSubmit,
     orgId,
     loading,
+    groupOptions,
+    groupLoading: groupQuery.isFetching,
   };
 };

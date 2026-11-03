@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, PencilLine } from "lucide-react";
+import { Loader2, PencilLine, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -22,7 +22,39 @@ interface CollectionListTableProps {
   loading: boolean;
   startIndex?: number;
   onEdit: (collId: number) => void;
+  onDelete: (collection: RectifyCollection) => void;
 }
+
+const deleteButtonClass =
+  "h-9 px-3 font-semibold text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700";
+
+const deleteBlockedHint = (row: RectifyCollection) =>
+  row.canChangeDate
+    ? "Delete collection"
+    : "Bulk / demand receipts cannot be deleted here";
+
+const DeleteButton = ({
+  row,
+  onDelete,
+  className = "",
+}: {
+  row: RectifyCollection;
+  onDelete: (collection: RectifyCollection) => void;
+  className?: string;
+}) => (
+  <Button
+    type="button"
+    size="sm"
+    variant="outline"
+    disabled={!row.canChangeDate}
+    title={deleteBlockedHint(row)}
+    onClick={() => onDelete(row)}
+    className={`${deleteButtonClass} ${className}`}
+  >
+    <Trash2 className="h-4 w-4" />
+    Delete
+  </Button>
+);
 
 const BulkBadge = () => (
   <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700 border border-amber-200">
@@ -54,6 +86,7 @@ const CollectionListTable = ({
   loading,
   startIndex = 1,
   onEdit,
+  onDelete,
 }: CollectionListTableProps) => {
   if (loading) {
     return (
@@ -104,7 +137,7 @@ const CollectionListTable = ({
                 <TableHead className="min-w-[160px] text-right font-bold text-primary">
                   Amount
                 </TableHead>
-                <TableHead className="w-24 text-center font-bold text-primary">
+                <TableHead className="w-44 text-center font-bold text-primary">
                   Action
                 </TableHead>
               </TableRow>
@@ -158,16 +191,19 @@ const CollectionListTable = ({
                     </p>
                   </TableCell>
                   <TableCell className="text-center">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onEdit(row.collId)}
-                      className="h-9 px-3 font-semibold text-primary border-primary/20 hover:bg-primary/5"
-                    >
-                      <PencilLine className="h-4 w-4" />
-                      Edit
-                    </Button>
+                    <div className="flex items-center justify-center gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onEdit(row.collId)}
+                        className="h-9 px-3 font-semibold text-primary border-primary/20 hover:bg-primary/5"
+                      >
+                        <PencilLine className="h-4 w-4" />
+                        Edit
+                      </Button>
+                      <DeleteButton row={row} onDelete={onDelete} />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -193,16 +229,19 @@ const CollectionListTable = ({
                   {row.isBulkVoucher && <BulkBadge />}
                 </p>
               </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => onEdit(row.collId)}
-                className="h-9 px-3 font-semibold text-primary border-primary/20 hover:bg-primary/5 shrink-0"
-              >
-                <PencilLine className="h-4 w-4" />
-                Edit
-              </Button>
+              <div className="flex items-center gap-2 shrink-0">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onEdit(row.collId)}
+                  className="h-9 px-3 font-semibold text-primary border-primary/20 hover:bg-primary/5"
+                >
+                  <PencilLine className="h-4 w-4" />
+                  Edit
+                </Button>
+                <DeleteButton row={row} onDelete={onDelete} />
+              </div>
             </div>
             <div className="min-w-0">
               <h4 className="font-semibold text-primary truncate">

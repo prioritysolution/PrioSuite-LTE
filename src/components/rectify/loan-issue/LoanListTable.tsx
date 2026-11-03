@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2, PencilLine } from "lucide-react";
+import { Loader2, PencilLine, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Table,
@@ -22,7 +22,11 @@ interface LoanListTableProps {
   loading: boolean;
   startIndex?: number;
   onEdit: (accountId: number) => void;
+  onDelete: (loan: RectifyLoan) => void;
 }
+
+const deleteButtonClass =
+  "h-9 px-3 font-semibold text-red-600 border-red-200 hover:bg-red-50 hover:text-red-700";
 
 const RectifiedBadge = ({ count }: { count: number }) => (
   <span className="inline-flex items-center rounded-full bg-sky-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-700 border border-sky-200">
@@ -47,6 +51,7 @@ const LoanListTable = ({
   loading,
   startIndex = 1,
   onEdit,
+  onDelete,
 }: LoanListTableProps) => {
   if (loading) {
     return (
@@ -100,7 +105,7 @@ const LoanListTable = ({
                 <TableHead className="min-w-[150px] text-right font-bold text-primary">
                   Loan Amount
                 </TableHead>
-                <TableHead className="w-24 text-center font-bold text-primary">
+                <TableHead className="w-44 text-center font-bold text-primary">
                   Action
                 </TableHead>
               </TableRow>
@@ -150,16 +155,28 @@ const LoanListTable = ({
                     </p>
                   </TableCell>
                   <TableCell className="text-center">
-                    <Button
-                      type="button"
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onEdit(row.accountId)}
-                      className="h-9 px-3 font-semibold text-primary border-primary/20 hover:bg-primary/5"
-                    >
-                      <PencilLine className="h-4 w-4" />
-                      Edit
-                    </Button>
+                    <div className="flex items-center justify-center gap-2">
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onEdit(row.accountId)}
+                        className="h-9 px-3 font-semibold text-primary border-primary/20 hover:bg-primary/5"
+                      >
+                        <PencilLine className="h-4 w-4" />
+                        Edit
+                      </Button>
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => onDelete(row)}
+                        className={deleteButtonClass}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        Delete
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -182,16 +199,28 @@ const LoanListTable = ({
                 </p>
                 <p className="font-semibold text-gray-800">{row.voucherNo || "—"}</p>
               </div>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                onClick={() => onEdit(row.accountId)}
-                className="h-9 px-3 font-semibold text-primary border-primary/20 hover:bg-primary/5 shrink-0"
-              >
-                <PencilLine className="h-4 w-4" />
-                Edit
-              </Button>
+              <div className="flex shrink-0 items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onEdit(row.accountId)}
+                  className="h-9 px-3 font-semibold text-primary border-primary/20 hover:bg-primary/5"
+                >
+                  <PencilLine className="h-4 w-4" />
+                  Edit
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => onDelete(row)}
+                  className={deleteButtonClass}
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Delete
+                </Button>
+              </div>
             </div>
             <div className="min-w-0">
               <h4 className="font-semibold text-primary truncate">

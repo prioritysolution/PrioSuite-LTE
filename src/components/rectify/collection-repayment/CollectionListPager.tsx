@@ -84,81 +84,79 @@ const CollectionListPager = ({
         </div>
       </div>
 
-      {lastPage > 1 && (
-        <nav aria-label="Collection list pages" className="flex flex-wrap items-center gap-1">
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className={iconButton}
-            disabled={atFirst}
-            onClick={() => onPageChange(1)}
-            aria-label="First page"
-          >
-            <ChevronsLeft className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className={iconButton}
-            disabled={atFirst}
-            onClick={() => onPageChange(page - 1)}
-            aria-label="Previous page"
-          >
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
+      <nav aria-label="Collection list pages" className="flex flex-wrap items-center gap-1">
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className={iconButton}
+          disabled={atFirst}
+          onClick={() => onPageChange(1)}
+          aria-label="First page"
+        >
+          <ChevronsLeft className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className={iconButton}
+          disabled={atFirst}
+          onClick={() => onPageChange(page - 1)}
+          aria-label="Previous page"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
 
-          {pageWindow(page, lastPage).map((item, index) =>
-            item === "gap" ? (
-              <span key={`gap-${index}`} className="px-1.5 text-sm text-gray-400">
-                …
-              </span>
-            ) : (
-              <Button
-                key={item}
-                type="button"
-                variant={item === page ? "default" : "outline"}
-                size="sm"
-                disabled={loading}
-                aria-current={item === page ? "page" : undefined}
-                onClick={() => item !== page && onPageChange(item)}
-                className={cn(
-                  "h-9 min-w-9 px-2.5 font-semibold",
-                  item === page
-                    ? "bg-primary text-white hover:bg-primary/90"
-                    : "border-gray-200 text-gray-600 hover:bg-primary/5 hover:text-primary",
-                )}
-              >
-                {item}
-              </Button>
-            ),
-          )}
+        {pageWindow(page, lastPage).map((item, index) =>
+          item === "gap" ? (
+            <span key={`gap-${index}`} className="px-1.5 text-sm text-gray-400">
+              …
+            </span>
+          ) : (
+            <Button
+              key={item}
+              type="button"
+              variant={item === page ? "default" : "outline"}
+              size="sm"
+              disabled={loading}
+              aria-current={item === page ? "page" : undefined}
+              onClick={() => item !== page && onPageChange(item)}
+              className={cn(
+                "h-9 min-w-9 px-2.5 font-semibold",
+                item === page
+                  ? "bg-primary text-white hover:bg-primary/90"
+                  : "border-gray-200 text-gray-600 hover:bg-primary/5 hover:text-primary",
+              )}
+            >
+              {item}
+            </Button>
+          ),
+        )}
 
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className={iconButton}
-            disabled={atLast}
-            onClick={() => onPageChange(page + 1)}
-            aria-label="Next page"
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="icon"
-            className={iconButton}
-            disabled={atLast}
-            onClick={() => onPageChange(lastPage)}
-            aria-label="Last page"
-          >
-            <ChevronsRight className="h-4 w-4" />
-          </Button>
-        </nav>
-      )}
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className={iconButton}
+          disabled={atLast}
+          onClick={() => onPageChange(page + 1)}
+          aria-label="Next page"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          size="icon"
+          className={iconButton}
+          disabled={atLast}
+          onClick={() => onPageChange(lastPage)}
+          aria-label="Last page"
+        >
+          <ChevronsRight className="h-4 w-4" />
+        </Button>
+      </nav>
     </div>
   );
 };

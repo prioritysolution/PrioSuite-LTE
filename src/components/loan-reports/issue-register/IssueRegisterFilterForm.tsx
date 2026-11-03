@@ -9,7 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { DatePicker } from "@/common/formFields/DatePicker";
 import DropdownField from "@/common/formFields/DropdownField";
-import { IssueRegisterForm } from "@/container/loan-reports/issue-register/IssueRegisterType";
+import {
+  IssueRegisterForm,
+  IssueRegisterGroupOption,
+} from "@/container/loan-reports/issue-register/IssueRegisterType";
 import { RootState } from "@/redux/store";
 
 interface FilterFormProps {
@@ -17,6 +20,8 @@ interface FilterFormProps {
   loading?: boolean;
   form: UseFormReturn<IssueRegisterForm>;
   resetForm: () => void;
+  groupOptions: IssueRegisterGroupOption[];
+  groupLoading?: boolean;
 }
 
 export function IssueRegisterFilterForm({
@@ -24,6 +29,8 @@ export function IssueRegisterFilterForm({
   loading,
   form,
   resetForm,
+  groupOptions,
+  groupLoading,
 }: FilterFormProps) {
   const branchList = useSelector(
     (state: RootState) => state.issueRegister.branchList || [],
@@ -68,6 +75,19 @@ export function IssueRegisterFilterForm({
             optionValueKey="Branch_Id"
             isRequired
             sortValue="Branch_Id"
+          />
+
+          <DropdownField
+            control={form.control}
+            name="group"
+            label="Group"
+            options={groupOptions}
+            optionLabelKey="label"
+            optionValueKey="value"
+            isSearch
+            loading={groupLoading}
+            disabled={!branch}
+            placeholder={branch ? "All Groups" : "Select branch first"}
           />
         </div>
 

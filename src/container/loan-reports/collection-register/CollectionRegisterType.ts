@@ -4,6 +4,12 @@ export interface CollectionRegisterForm {
   fromDate: Date | string | null;
   toDate: Date | string | null;
   branch: string | number;
+  group: string | number;
+}
+
+export interface CollectionRegisterGroupOption {
+  label: string;
+  value: number;
 }
 
 export interface CollectionRegisterState {
@@ -18,6 +24,8 @@ export interface CollectionRegisterProps {
   onSubmit: (values: CollectionRegisterForm) => void;
   resetForm: () => void;
   loading?: boolean;
+  groupOptions: CollectionRegisterGroupOption[];
+  groupLoading: boolean;
 }
 
 export interface CollectionRegisterRow {
@@ -37,4 +45,5 @@ export interface FetchCollectionRegisterArgs {
   branchId: number;
   fromDate: string;
   toDate: string;
+  groupId?: number;
 }

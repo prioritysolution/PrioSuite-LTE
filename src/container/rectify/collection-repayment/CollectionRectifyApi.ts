@@ -36,6 +36,8 @@ export const getCollectionListAPI = (params: {
   to_date?: string;
   group_id?: number;
   voucher_no?: string;
+  page?: number;
+  per_page?: number;
 }) =>
   doGetApiCall({ url: endPoints.getCollRectifyList(buildQuery(params)) });
 
@@ -71,6 +73,12 @@ export const postCollectionRectifyAPI = (body: {
   coll_date?: string;
   co_id?: number;
 }) => doPostApiCall({ url: endPoints.postCollRectify, bodyData: body });
+
+export const deleteCollectionAPI = (body: {
+  org_id: number;
+  branch_id: number;
+  coll_id: number;
+}) => doPostApiCall({ url: endPoints.deleteCollRectify, bodyData: body });
 
 export const getRectifyHistoryAPI = (params: {
   org_id: number;

@@ -1,4 +1,5 @@
 import { UseFormReturn } from "react-hook-form";
+import type { ListPagination } from "../loan-issue/LoanRectifyType";
 
 export interface SelectOption {
   label: string;
@@ -213,9 +214,18 @@ export interface CollectionRectifyProps {
   coLoading: boolean;
   collections: RectifyCollection[];
   listLoading: boolean;
+  pagination: ListPagination | null;
+  pageSize: number;
+  onPageChange: (page: number) => void;
+  onPageSizeChange: (pageSize: number) => void;
   onSearch: () => void;
   onResetSearch: () => void;
   onEdit: (collId: number) => void;
+  deleteTarget: RectifyCollection | null;
+  deleting: boolean;
+  onDelete: (collection: RectifyCollection) => void;
+  onCancelDelete: () => void;
+  onConfirmDelete: () => void;
   dialogOpen: boolean;
   onCloseDialog: () => void;
   detailsLoading: boolean;

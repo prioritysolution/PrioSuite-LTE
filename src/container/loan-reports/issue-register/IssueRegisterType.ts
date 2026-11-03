@@ -4,6 +4,12 @@ export interface IssueRegisterForm {
   fromDate: Date | string | null;
   toDate: Date | string | null;
   branch: string | number;
+  group: string | number;
+}
+
+export interface IssueRegisterGroupOption {
+  label: string;
+  value: number;
 }
 
 export interface IssueRegisterState {
@@ -16,6 +22,8 @@ export interface IssueRegisterProps {
   onSubmit: (values: IssueRegisterForm) => void;
   resetForm: () => void;
   loading?: boolean;
+  groupOptions: IssueRegisterGroupOption[];
+  groupLoading: boolean;
 }
 
 export interface IssueRegisterRow {

@@ -2,18 +2,20 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useGlobalContext } from "@/context/GlobalContext";
 import { calcCollectionSplitAPI } from "@/container/loan-entry/loan-collection/LoanCollectionApi";
 import {
   CollectionSearchForm,
+  RectifyCollection,
   RectifyForm,
   RectifyResult,
   SelectOption,
   SplitPreview,
 } from "./CollectionRectifyType";
 import {
+  deleteCollectionAPI,
   extractList,
   flattenDetails,
   formatMoney,
@@ -32,8 +34,10 @@ import {
   toApiDate,
   todayNoon,
 } from "./CollectionRectifyApi";
+import { mapPagination } from "../loan-issue/LoanRectifyApi";
 
 const SPLIT_DEBOUNCE_MS = 400;
+const DEFAULT_PAGE_SIZE = 25;
 const LOAN_SEARCH_DEBOUNCE_MS = 400;
 const REASON_MAX_LENGTH = 200;
 
@@ -103,6 +107,8 @@ export const useCollectionRectify = () => {
     to_date: toApiDate(todayNoon()),
   }));
   const [searchNonce, setSearchNonce] = useState(0);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [selectedCollId, setSelectedCollId] = useState<number | null>(null);
   const [editSession, setEditSession] = useState(0);
   const [loanSearch, setLoanSearch] = useState("");
@@ -116,6 +122,8 @@ export const useCollectionRectify = () => {
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<RectifyResult | null>(null);
   const savingRef = useRef(false);
+  const [deleteTarget, setDeleteTarget] = useState<RectifyCollection | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const groupQuery = useQuery({
     queryKey: ["rectifyGroupList", orgId, branchId],
@@ -164,16 +172,33 @@ export const useCollectionRectify = () => {
   );
 
   const listQuery = useQuery({
-    queryKey: ["collRectifyList", orgId, branchId, listParams, searchNonce],
+    queryKey: ["collRectifyList", orgId, branchId, listParams, page, pageSize, searchNonce],
     queryFn: () =>
-      getCollectionListAPI({ org_id: orgId, branch_id: branchId, ...listParams }),
+      getCollectionListAPI({
+        org_id: orgId,
+        branch_id: branchId,
+        ...listParams,
+        page,
+        per_page: pageSize,
+      }),
     enabled: orgId > 0 && branchId > 0,
+    placeholderData: keepPreviousData,
   });
 
   const collections = useMemo(
     () => extractList(listQuery.data).map(mapCollection),
     [listQuery.data],
   );
+  const pagination = useMemo(() => mapPagination(listQuery.data), [listQuery.data]);
+
+  const onPageChange = useCallback((next: number) => {
+    setPage(Math.max(1, next));
+  }, []);
+
+  const onPageSizeChange = useCallback((size: number) => {
+    setPageSize(size);
+    setPage(1);
+  }, []);
 
   const detailsQuery = useQuery({
     queryKey: ["collRectifyDetails", orgId, branchId, selectedCollId],
@@ -413,6 +438,7 @@ export const useCollectionRectify = () => {
       group_id: groupId > 0 ? groupId : undefined,
       voucher_no: values.voucher_no.trim() || undefined,
     });
+    setPage(1);
     setSearchNonce((value) => value + 1);
   });
 
@@ -427,6 +453,7 @@ export const useCollectionRectify = () => {
       from_date: toApiDate(todayNoon()),
       to_date: toApiDate(todayNoon()),
     });
+    setPage(1);
     setSearchNonce((value) => value + 1);
   }, [searchForm]);
 
@@ -442,6 +469,43 @@ export const useCollectionRectify = () => {
     },
     [rectifyForm],
   );
+
+  const onDelete = useCallback((target: RectifyCollection) => {
+    setDeleteTarget(target);
+  }, []);
+
+  const onCancelDelete = useCallback(() => {
+    if (!deleting) setDeleteTarget(null);
+  }, [deleting]);
+
+  const onConfirmDelete = useCallback(async () => {
+    if (!deleteTarget || deleting) return;
+    setDeleting(true);
+    try {
+      const res = await deleteCollectionAPI({
+        org_id: orgId,
+        branch_id: branchId,
+        coll_id: deleteTarget.collId,
+      });
+      if (/error found/i.test(String(res?.message || ""))) {
+        toast.error(flattenDetails(res?.details) || "Unable to delete the collection.");
+        return;
+      }
+      toast.success(flattenDetails(res?.details) || "Collection Deleted Successfully !!");
+      setDeleteTarget(null);
+      if (collections.length === 1 && page > 1) setPage(page - 1);
+      void queryClient.invalidateQueries({ queryKey: ["collRectifyList"] });
+      void queryClient.invalidateQueries({ queryKey: ["collRectifyDetails"] });
+      void queryClient.invalidateQueries({ queryKey: ["rectifyHistory"] });
+    } catch (error: unknown) {
+      const body = errorBody(error);
+      toast.error(
+        flattenDetails(body?.details) || body?.message || "Unable to delete the collection.",
+      );
+    } finally {
+      setDeleting(false);
+    }
+  }, [branchId, collections.length, deleteTarget, deleting, orgId, page, queryClient]);
 
   const onCloseDialog = useCallback(() => {
     if (savingRef.current) return;
@@ -600,9 +664,18 @@ export const useCollectionRectify = () => {
     coLoading: sahayikaQuery.isLoading,
     collections,
     listLoading: listQuery.isFetching,
+    pagination,
+    pageSize,
+    onPageChange,
+    onPageSizeChange,
     onSearch,
     onResetSearch,
     onEdit,
+    deleteTarget,
+    deleting,
+    onDelete,
+    onCancelDelete,
+    onConfirmDelete,
     dialogOpen: selectedCollId !== null,
     onCloseDialog,
     detailsLoading: detailsQuery.isLoading || (detailsQuery.isFetching && !collection),

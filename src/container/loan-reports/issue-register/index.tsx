@@ -5,8 +5,16 @@ import IssueRegisterComponent from "@/components/loan-reports/issue-register";
 import { useIssueRegister } from "./Hooks";
 
 const IssueRegisterContainer = () => {
-  const { getBranchListAPICall, methods, onSubmit, resetForm, orgId, loading } =
-    useIssueRegister();
+  const {
+    getBranchListAPICall,
+    methods,
+    onSubmit,
+    resetForm,
+    orgId,
+    loading,
+    groupOptions,
+    groupLoading,
+  } = useIssueRegister();
 
   useEffect(() => {
     if (orgId) {
@@ -27,6 +35,8 @@ const IssueRegisterContainer = () => {
       onSubmit={onSubmit}
       resetForm={resetForm}
       loading={loading}
+      groupOptions={groupOptions}
+      groupLoading={groupLoading}
     />
   );
 };

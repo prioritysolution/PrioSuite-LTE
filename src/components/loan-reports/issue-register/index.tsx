@@ -84,6 +84,8 @@ const IssueRegisterComponent = ({
   onSubmit,
   resetForm,
   loading,
+  groupOptions,
+  groupLoading,
 }: IssueRegisterProps) => {
   const issueRegisterList = useSelector(
     (state: RootState) => state.issueRegister.issueRegisterList,
@@ -300,6 +302,8 @@ const IssueRegisterComponent = ({
                 onFilter={onSubmit}
                 resetForm={resetForm}
                 loading={loading}
+                groupOptions={groupOptions}
+                groupLoading={groupLoading}
               />
             </section>
 

@@ -9,7 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { DatePicker } from "@/common/formFields/DatePicker";
 import DropdownField from "@/common/formFields/DropdownField";
-import { CollectionRegisterForm } from "@/container/loan-reports/collection-register/CollectionRegisterType";
+import {
+  CollectionRegisterForm,
+  CollectionRegisterGroupOption,
+} from "@/container/loan-reports/collection-register/CollectionRegisterType";
 import { RootState } from "@/redux/store";
 
 interface FilterFormProps {
@@ -17,6 +20,8 @@ interface FilterFormProps {
   loading?: boolean;
   form: UseFormReturn<CollectionRegisterForm>;
   resetForm: () => void;
+  groupOptions: CollectionRegisterGroupOption[];
+  groupLoading?: boolean;
 }
 
 export function CollectionRegisterFilterForm({
@@ -24,6 +29,8 @@ export function CollectionRegisterFilterForm({
   loading,
   form,
   resetForm,
+  groupOptions,
+  groupLoading,
 }: FilterFormProps) {
   const branchList = useSelector(
     (state: RootState) => state.collectionRegister.branchList || [],
@@ -68,6 +75,19 @@ export function CollectionRegisterFilterForm({
             optionValueKey="Branch_Id"
             isRequired
             sortValue="Branch_Id"
+          />
+
+          <DropdownField
+            control={form.control}
+            name="group"
+            label="Group"
+            options={groupOptions}
+            optionLabelKey="label"
+            optionValueKey="value"
+            isSearch
+            loading={groupLoading}
+            disabled={!branch}
+            placeholder={branch ? "All Groups" : "Select branch first"}
           />
         </div>
 

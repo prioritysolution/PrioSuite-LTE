@@ -25,10 +25,12 @@ import {
   LoanSearchForm,
   LoanTerms,
   LoanTermsPreview,
+  RectifyLoan,
   SchemeOption,
 } from "./LoanRectifyType";
 import {
   calcLoanTermsAPI,
+  deleteLoanIssueAPI,
   getLoanDetailsAPI,
   getLoanListAPI,
   getPurposeListAPI,
@@ -144,6 +146,8 @@ export const useLoanRectify = () => {
   const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<LoanRectifyResult | null>(null);
   const savingRef = useRef(false);
+  const [deleteTarget, setDeleteTarget] = useState<RectifyLoan | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const groupQuery = useQuery({
     queryKey: ["rectifyGroupList", orgId, branchId],
@@ -319,11 +323,9 @@ export const useLoanRectify = () => {
   const nextAmount = parseAmount(amountText ?? "");
   const nextSchemeId = isChosen(schemeValue) ? Number(schemeValue) : 0;
   const termsKey = `${nextDate}|${nextAmount}|${nextSchemeId}`;
+  // A loan date change alone keeps RoI, installments and realisable, so no recalculation is needed
   const termsSameAsSaved =
-    !!loan &&
-    nextDate === loan.loanDate.slice(0, 10) &&
-    nextAmount === loan.loanAmount &&
-    nextSchemeId === loan.schemeId;
+    !!loan && nextAmount === loan.loanAmount && nextSchemeId === loan.schemeId;
   const termsInputValid =
     !!nextDate && Number.isFinite(nextAmount) && nextAmount > 0 && nextSchemeId > 0;
 
@@ -442,6 +444,42 @@ export const useLoanRectify = () => {
     },
     [rectifyForm],
   );
+
+  const onDelete = useCallback((target: RectifyLoan) => {
+    setDeleteTarget(target);
+  }, []);
+
+  const onCancelDelete = useCallback(() => {
+    if (!deleting) setDeleteTarget(null);
+  }, [deleting]);
+
+  const onConfirmDelete = useCallback(async () => {
+    if (!deleteTarget || deleting) return;
+    setDeleting(true);
+    try {
+      const res = await deleteLoanIssueAPI({
+        org_id: orgId,
+        branch_id: branchId,
+        account_id: deleteTarget.accountId,
+      });
+      if (/error found/i.test(String(res?.message || ""))) {
+        toast.error(flattenDetails(res?.details) || "Unable to delete the loan.");
+        return;
+      }
+      toast.success(flattenDetails(res?.details) || "Loan Deleted Successfully !!");
+      setDeleteTarget(null);
+      if (loans.length === 1 && page > 1) setPage(page - 1);
+      void queryClient.invalidateQueries({ queryKey: ["loanRectifyList"] });
+      void queryClient.invalidateQueries({ queryKey: ["loanRectifyDetails"] });
+    } catch (error: unknown) {
+      const body = errorBody(error);
+      toast.error(
+        flattenDetails(body?.details) || body?.message || "Unable to delete the loan.",
+      );
+    } finally {
+      setDeleting(false);
+    }
+  }, [branchId, deleteTarget, deleting, loans.length, orgId, page, queryClient]);
 
   const onCloseDialog = useCallback(() => {
     if (savingRef.current) return;
@@ -619,6 +657,11 @@ export const useLoanRectify = () => {
     onSearch,
     onResetSearch,
     onEdit,
+    deleteTarget,
+    deleting,
+    onDelete,
+    onCancelDelete,
+    onConfirmDelete,
     dialogOpen: selectedAccountId !== null,
     onCloseDialog,
     detailsLoading: detailsQuery.isLoading || (detailsQuery.isFetching && !loan),

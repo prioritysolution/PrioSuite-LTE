@@ -8,6 +8,7 @@ import DropdownField from "@/common/formFields/DropdownField";
 import { LoanRectifyProps } from "@/container/rectify/loan-issue/LoanRectifyType";
 import FilterCard, { ResultCard } from "../collection-repayment/FilterCard";
 import RectifyField, { fieldInputClass } from "../collection-repayment/RectifyField";
+import LoanDeleteDialog from "./LoanDeleteDialog";
 import LoanListPager from "./LoanListPager";
 import LoanListTable from "./LoanListTable";
 import LoanRectifyDialog from "./LoanRectifyDialog";
@@ -23,6 +24,11 @@ const LoansTab = ({
   onSearch,
   onResetSearch,
   onEdit,
+  deleteTarget,
+  deleting,
+  onDelete,
+  onCancelDelete,
+  onConfirmDelete,
   ...dialogProps
 }: LoanRectifyProps) => {
   const [memberSearch, setMemberSearch] = useState("");
@@ -131,6 +137,7 @@ const LoansTab = ({
           loading={listLoading}
           startIndex={pagination?.from || 1}
           onEdit={onEdit}
+          onDelete={onDelete}
         />
         {pagination && (
           <LoanListPager
@@ -142,6 +149,12 @@ const LoansTab = ({
       </ResultCard>
 
       <LoanRectifyDialog {...dialogProps} />
+      <LoanDeleteDialog
+        deleteTarget={deleteTarget}
+        deleting={deleting}
+        onCancelDelete={onCancelDelete}
+        onConfirmDelete={onConfirmDelete}
+      />
     </div>
   );
 };

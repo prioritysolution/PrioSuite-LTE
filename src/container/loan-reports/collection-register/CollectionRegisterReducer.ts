@@ -179,9 +179,20 @@ const flattenMemberPackets = (packets: any[]): any[] => {
   return rows;
 };
 
-const normalizeRows = (list: any[], fromDate: string, toDate: string) => {
+const GROUP_ID_KEYS = ["Group_Id", "Grp_Id", "grp_id", "GroupId", "group_id"];
+
+const normalizeRows = (
+  list: any[],
+  fromDate: string,
+  toDate: string,
+  groupId?: number,
+) => {
   return list
     .filter((item) => {
+      if (groupId) {
+        const rowGroupId = Number(pick(item, GROUP_ID_KEYS));
+        if (rowGroupId > 0 && rowGroupId !== groupId) return false;
+      }
       const collDate = pick(item, COLL_DATE_KEYS);
       // If row has Coll_Date, enforce range; otherwise keep (backend already filtered)
       if (collDate) return isCollDateInRange(collDate, fromDate, toDate);
@@ -229,6 +240,7 @@ export const fetchCollectionRegister = createAsyncThunk(
         args.branchId,
         args.fromDate,
         args.toDate,
+        args.groupId,
       );
 
       if (signal.aborted) {
@@ -238,7 +250,7 @@ export const fetchCollectionRegister = createAsyncThunk(
       }
 
       const list = extractList(res);
-      return normalizeRows(list, args.fromDate, args.toDate);
+      return normalizeRows(list, args.fromDate, args.toDate, args.groupId);
     } catch (error: any) {
       if (error?.name === "AbortError" || signal.aborted) throw error;
       return rejectWithValue(

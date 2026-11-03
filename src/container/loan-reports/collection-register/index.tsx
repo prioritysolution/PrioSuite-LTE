@@ -5,7 +5,8 @@ import CollectionRegisterComponent from "@/components/loan-reports/collection-re
 import { useCollectionRegister } from "./Hooks";
 
 const CollectionRegisterContainer = () => {
-  const { methods, onSubmit, resetForm, loading } = useCollectionRegister();
+  const { methods, onSubmit, resetForm, loading, groupOptions, groupLoading } =
+    useCollectionRegister();
 
   useEffect(() => {
     return () => {
@@ -20,6 +21,8 @@ const CollectionRegisterContainer = () => {
       onSubmit={onSubmit}
       resetForm={resetForm}
       loading={loading}
+      groupOptions={groupOptions}
+      groupLoading={groupLoading}
     />
   );
 };

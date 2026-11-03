@@ -95,6 +95,12 @@ export const postLoanRectifyAPI = (body: {
   co_id?: number;
 }) => doPostApiCall({ url: endPoints.postLoanRectify, bodyData: body });
 
+export const deleteLoanIssueAPI = (body: {
+  org_id: number;
+  branch_id: number;
+  account_id: number;
+}) => doPostApiCall({ url: endPoints.deleteLoanRectify, bodyData: body });
+
 export const getLoanHistoryAPI = (params: {
   org_id: number;
   branch_id: number;

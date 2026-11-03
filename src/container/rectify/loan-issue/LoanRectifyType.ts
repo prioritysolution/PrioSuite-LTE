@@ -141,6 +141,11 @@ export interface LoanRectifyProps {
   onSearch: () => void;
   onResetSearch: () => void;
   onEdit: (accountId: number) => void;
+  deleteTarget: RectifyLoan | null;
+  deleting: boolean;
+  onDelete: (loan: RectifyLoan) => void;
+  onCancelDelete: () => void;
+  onConfirmDelete: () => void;
   dialogOpen: boolean;
   onCloseDialog: () => void;
   detailsLoading: boolean;

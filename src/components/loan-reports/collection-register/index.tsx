@@ -26,6 +26,8 @@ const CollectionRegisterComponent = ({
   onSubmit,
   resetForm,
   loading,
+  groupOptions,
+  groupLoading,
 }: CollectionRegisterProps) => {
   const collectionRegisterList = useSelector(
     (state: RootState) => state.collectionRegister.collectionRegisterList,
@@ -220,6 +222,8 @@ const CollectionRegisterComponent = ({
                 onFilter={onSubmit}
                 resetForm={resetForm}
                 loading={loading}
+                groupOptions={groupOptions}
+                groupLoading={groupLoading}
               />
             </section>
 

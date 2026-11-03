@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input";
 import { DatePicker } from "@/common/formFields/DatePicker";
 import DropdownField from "@/common/formFields/DropdownField";
 import { CollectionRectifyProps } from "@/container/rectify/collection-repayment/CollectionRectifyType";
-import CollectionListPager, { PAGE_SIZE_OPTIONS } from "./CollectionListPager";
+import CollectionDeleteDialog from "./CollectionDeleteDialog";
+import CollectionListPager from "./CollectionListPager";
 import CollectionListTable from "./CollectionListTable";
 import FilterCard, { ResultCard } from "./FilterCard";
 import RectifyDialog from "./RectifyDialog";
@@ -18,9 +19,18 @@ const CollectionsTab = ({
   groupLoading,
   collections,
   listLoading,
+  pagination,
+  pageSize,
+  onPageChange,
+  onPageSizeChange,
   onSearch,
   onResetSearch,
   onEdit,
+  deleteTarget,
+  deleting,
+  onDelete,
+  onCancelDelete,
+  onConfirmDelete,
   ...dialogProps
 }: CollectionRectifyProps) => {
   const [memberSearch, setMemberSearch] = useState("");
@@ -38,16 +48,7 @@ const CollectionsTab = ({
     );
   }, [collections, query]);
 
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(PAGE_SIZE_OPTIONS[0]);
-  const lastPage = Math.max(1, Math.ceil(filteredCollections.length / pageSize));
-  const currentPage = Math.min(page, lastPage);
-  const startIndex = (currentPage - 1) * pageSize;
-
-  const pagedCollections = useMemo(
-    () => filteredCollections.slice(startIndex, startIndex + pageSize),
-    [filteredCollections, startIndex, pageSize],
-  );
+  const totalCollections = pagination?.total ?? collections.length;
 
   return (
     <div className="form-sections">
@@ -55,13 +56,9 @@ const CollectionsTab = ({
         form={searchForm}
         title="Find Collection"
         loading={listLoading}
-        onSearch={() => {
-          setPage(1);
-          return onSearch();
-        }}
+        onSearch={onSearch}
         onReset={() => {
           setMemberSearch("");
-          setPage(1);
           onResetSearch();
         }}
       >
@@ -101,8 +98,8 @@ const CollectionsTab = ({
       <ResultCard
         title="Collections"
         icon={<ListChecks size={18} />}
-        count={filteredCollections.length}
-        totalCount={collections.length}
+        count={query ? filteredCollections.length : totalCollections}
+        totalCount={totalCollections}
         countLabel={["collection", "collections"]}
         headerExtra={
           collections.length > 0 && (
@@ -114,10 +111,7 @@ const CollectionsTab = ({
               <input
                 type="text"
                 value={memberSearch}
-                onChange={(event) => {
-                  setMemberSearch(event.target.value);
-                  setPage(1);
-                }}
+                onChange={(event) => setMemberSearch(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") event.preventDefault();
                 }}
@@ -129,10 +123,7 @@ const CollectionsTab = ({
               {memberSearch && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setMemberSearch("");
-                    setPage(1);
-                  }}
+                  onClick={() => setMemberSearch("")}
                   aria-label="Clear search"
                   className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-gray-400 hover:text-gray-600"
                 >
@@ -144,22 +135,22 @@ const CollectionsTab = ({
         }
       >
         <CollectionListTable
-          collections={pagedCollections}
+          collections={filteredCollections}
           loading={listLoading}
-          startIndex={startIndex + 1}
+          startIndex={pagination?.from || 1}
           onEdit={onEdit}
+          onDelete={onDelete}
         />
-        {!listLoading && (
+        {pagination && (
           <CollectionListPager
-            page={currentPage}
+            page={pagination.currentPage}
             pageSize={pageSize}
-            total={filteredCollections.length}
+            total={pagination.total}
             loading={listLoading}
-            onPageChange={(next) => setPage(Math.min(Math.max(1, next), lastPage))}
-            onPageSizeChange={(size) => {
-              setPageSize(size);
-              setPage(1);
-            }}
+            onPageChange={(next) =>
+              onPageChange(Math.min(Math.max(1, next), pagination.lastPage))
+            }
+            onPageSizeChange={onPageSizeChange}
           />
         )}
       </ResultCard>
@@ -168,6 +159,13 @@ const CollectionsTab = ({
         groupOptions={groupOptions}
         groupLoading={groupLoading}
         {...dialogProps}
+      />
+
+      <CollectionDeleteDialog
+        deleteTarget={deleteTarget}
+        deleting={deleting}
+        onCancelDelete={onCancelDelete}
+        onConfirmDelete={onConfirmDelete}
       />
     </div>
   );

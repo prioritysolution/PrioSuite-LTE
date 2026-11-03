@@ -240,6 +240,7 @@ export const endPoints = {
   getCollRectifyLoans: (query: string) =>
     `${createApi}/Org/Rectify/GetTargetLoans?${query}`,
   postCollRectify: `${createApi}/Org/Rectify/PostCollectionRectify`,
+  deleteCollRectify: `${createApi}/Org/Rectify/DeleteCollection`,
   getRectifyHistory: (query: string) =>
     `${createApi}/Org/Rectify/GetRectifyHistory?${query}`,
   getRectifyLog: (query: string) =>
@@ -255,6 +256,7 @@ export const endPoints = {
   calcLoanRectifyTerms: (query: string) =>
     `${createApi}/Org/Rectify/CalcLoanIssueTerms?${query}`,
   postLoanRectify: `${createApi}/Org/Rectify/PostLoanIssueRectify`,
+  deleteLoanRectify: `${createApi}/Org/Rectify/DeleteLoanIssue`,
   getLoanRectifyHistory: (query: string) =>
     `${createApi}/Org/Rectify/GetLoanIssueRectifyHistory?${query}`,
   getLoanRectifyLog: (query: string) =>
@@ -300,18 +302,20 @@ export const endPoints = {
     branchId: number,
     fromDate: string,
     toDate: string,
+    groupId?: number,
   ) =>
-    `${createApi}/Org/ProcessLoan/GetLoanIssueRegister?org_id=${orgId}&branch_id=${branchId}&from_date=${fromDate}&to_date=${toDate}`,
+    `${createApi}/Org/ProcessLoan/GetLoanIssueRegister?org_id=${orgId}&branch_id=${branchId}&from_date=${fromDate}&to_date=${toDate}${groupId ? `&group_id=${groupId}` : ""}`,
 
   // Loan Reports — Collection Register (trans_loanappl_collection by Coll_Date)
-  // Branch-wide: group/member/cycle left as 0 so backend returns the full register.
+  // group_id=0 means all groups in the branch; member/cycle left as 0 for the full register.
   getCollectionRegister: (
     orgId: number,
     branchId: number,
     fromDate: string,
     toDate: string,
+    groupId?: number,
   ) =>
-    `${createApi}/Org/ManageProfile/GetLoanCollectionReport?org_id=${orgId}&group_id=0&member_id=0&from_date=${fromDate}&to_date=${toDate}&branch_id=${branchId}&loan_cycle=0`,
+    `${createApi}/Org/ManageProfile/GetLoanCollectionReport?org_id=${orgId}&group_id=${groupId || 0}&member_id=0&from_date=${fromDate}&to_date=${toDate}&branch_id=${branchId}&loan_cycle=0`,
 
   // MIS Reports — Daily Sheet
   getDailySheet: (

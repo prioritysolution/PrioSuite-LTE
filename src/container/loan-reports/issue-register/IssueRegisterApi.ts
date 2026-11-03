@@ -10,9 +10,10 @@ export const getIssueRegisterAPI = async (
   branchId: number,
   fromDate: string,
   toDate: string,
+  groupId?: number,
 ) => {
   return await doGetApiCall({
-    url: endPoints.getIssueRegister(orgId, branchId, fromDate, toDate),
+    url: endPoints.getIssueRegister(orgId, branchId, fromDate, toDate, groupId),
   });
 };
 

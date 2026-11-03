@@ -128,6 +128,43 @@ const ReadOnlyValue = ({
 
 const moneyOrBlank = (value: number | null) => (value === null ? "" : formatMoney(value));
 
+const parseApiDate = (value: string) => {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return match ? new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]), 12) : null;
+};
+
+const toDisplay = (date: Date) =>
+  `${String(date.getDate()).padStart(2, "0")}-${String(date.getMonth() + 1).padStart(2, "0")}-${date.getFullYear()}`;
+
+const LoanDateHint = ({
+  savedDate,
+  newDate,
+  maxDate,
+}: {
+  savedDate: string;
+  newDate: Date | string | null;
+  maxDate: Date;
+}) => {
+  const picked = newDate ? new Date(newDate) : null;
+  const firstDue =
+    picked && !Number.isNaN(picked.getTime())
+      ? new Date(picked.getFullYear(), picked.getMonth(), picked.getDate() + 7, 12)
+      : null;
+  return (
+    <p className="px-1 text-xs text-gray-500 leading-relaxed">
+      Saved: <span className="font-semibold">{formatDisplayDate(savedDate) || "—"}</span>.
+      Pick any date up to <span className="font-semibold">{toDisplay(maxDate)}</span>.
+      {firstDue && (
+        <>
+          {" "}
+          Schedule due dates move with it: 1st installment on{" "}
+          <span className="font-semibold">{toDisplay(firstDue)}</span>, then weekly.
+        </>
+      )}
+    </p>
+  );
+};
+
 const LoanRectifyDialog = ({
   rectifyForm,
   coOptions,
@@ -149,6 +186,12 @@ const LoanRectifyDialog = ({
 }: LoanRectifyDialogProps) => {
   const { errors } = rectifyForm.formState;
   const reasonLength = (rectifyForm.watch("reason") || "").length;
+  const newLoanDate = rectifyForm.watch("loan_date");
+
+  const today = new Date();
+  today.setHours(12, 0, 0, 0);
+  const firstColl = loan ? parseApiDate(loan.firstCollDate) : null;
+  const loanDateMax = firstColl && firstColl < today ? firstColl : today;
 
   return (
     <Dialog
@@ -321,16 +364,26 @@ const LoanRectifyDialog = ({
                   )}
 
                   <div className="grid grid-cols-1 items-start gap-4 md:grid-cols-2 xl:grid-cols-3">
-                    <DatePicker
-                      control={rectifyForm.control}
-                      name="loan_date"
-                      label="Loan Date"
-                      placeholder="Select date"
-                      isRequired
-                      disableFuture
-                      allowClear={false}
-                      disabled={!loan.canChangeTerms || saving}
-                    />
+                    <div className="space-y-1.5">
+                      <DatePicker
+                        control={rectifyForm.control}
+                        name="loan_date"
+                        label={loan.canChangeTerms ? "New Loan Date" : "Loan Date"}
+                        placeholder="Select date"
+                        isRequired
+                        disableFuture
+                        maxDate={loanDateMax}
+                        allowClear={false}
+                        disabled={!loan.canChangeTerms || saving}
+                      />
+                      {loan.canChangeTerms && (
+                        <LoanDateHint
+                          savedDate={loan.loanDate}
+                          newDate={newLoanDate}
+                          maxDate={loanDateMax}
+                        />
+                      )}
+                    </div>
                     <RectifyField
                       label="Loan Amount"
                       required
