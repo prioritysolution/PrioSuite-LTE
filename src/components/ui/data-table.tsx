@@ -23,17 +23,37 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 interface DataTableProps<TData, TValue> {
   columns: ColumnDef<TData, TValue>[]
   data: TData[]
+  serverPagination?: {
+    page: number
+    pageSize: number
+    pageCount: number
+    loading?: boolean
+    onPageChange: (page: number) => void
+    onPageSizeChange: (pageSize: number) => void
+  }
 }
 
 export function DataTable<TData, TValue>({
   columns,
   data,
+  serverPagination,
 }: DataTableProps<TData, TValue>) {
   const table = useReactTable({
     data,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    manualPagination: !!serverPagination,
+    ...(serverPagination ? {
+      pageCount: Math.max(1, serverPagination.pageCount),
+      state: { pagination: { pageIndex: serverPagination.page - 1, pageSize: serverPagination.pageSize } },
+      onPaginationChange: (updater) => {
+        const current = { pageIndex: serverPagination.page - 1, pageSize: serverPagination.pageSize }
+        const next = typeof updater === "function" ? updater(current) : updater
+        if (next.pageSize !== current.pageSize) serverPagination.onPageSizeChange(next.pageSize)
+        else if (next.pageIndex !== current.pageIndex) serverPagination.onPageChange(next.pageIndex + 1)
+      },
+    } : {}),
   })
 
   return (
@@ -89,6 +109,7 @@ export function DataTable<TData, TValue>({
           <p className="text-sm font-medium text-slate-600">Rows per page</p>
           <Select
             value={`${table.getState().pagination.pageSize}`}
+            disabled={serverPagination?.loading}
             onValueChange={(value) => {
               table.setPageSize(Number(value))
             }}
@@ -97,7 +118,7 @@ export function DataTable<TData, TValue>({
               <SelectValue placeholder={table.getState().pagination.pageSize} />
             </SelectTrigger>
             <SelectContent side="top">
-              {[10, 20, 30, 40, 50].map((pageSize) => (
+              {(serverPagination ? [10, 20, 25, 30, 40, 50] : [10, 20, 30, 40, 50]).map((pageSize) => (
                 <SelectItem key={pageSize} value={`${pageSize}`}>
                   {pageSize}
                 </SelectItem>
@@ -116,7 +137,7 @@ export function DataTable<TData, TValue>({
               variant="outline"
               className="hidden h-8 w-8 p-0 lg:flex border-gray-200 text-slate-600 hover:bg-slate-100"
               onClick={() => table.setPageIndex(0)}
-              disabled={!table.getCanPreviousPage()}
+              disabled={serverPagination?.loading || !table.getCanPreviousPage()}
             >
               <ChevronsLeft className="h-4 w-4" />
             </Button>
@@ -124,7 +145,7 @@ export function DataTable<TData, TValue>({
               variant="outline"
               className="h-8 w-8 p-0 border-gray-200 text-slate-600 hover:bg-slate-100"
               onClick={() => table.previousPage()}
-              disabled={!table.getCanPreviousPage()}
+              disabled={serverPagination?.loading || !table.getCanPreviousPage()}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
@@ -132,7 +153,7 @@ export function DataTable<TData, TValue>({
               variant="outline"
               className="h-8 w-8 p-0 border-gray-200 text-slate-600 hover:bg-slate-100"
               onClick={() => table.nextPage()}
-              disabled={!table.getCanNextPage()}
+              disabled={serverPagination?.loading || !table.getCanNextPage()}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
@@ -140,7 +161,7 @@ export function DataTable<TData, TValue>({
               variant="outline"
               className="hidden h-8 w-8 p-0 lg:flex border-gray-200 text-slate-600 hover:bg-slate-100"
               onClick={() => table.setPageIndex(table.getPageCount() - 1)}
-              disabled={!table.getCanNextPage()}
+              disabled={serverPagination?.loading || !table.getCanNextPage()}
             >
               <ChevronsRight className="h-4 w-4" />
             </Button>

@@ -358,6 +358,95 @@ export const endPoints = {
     }
     return `${createApi}/Org/MisReport/DailySheetDetails?${params.toString()}`;
   },
+  getMonthlyStatementOfAccounts: (
+    orgId: number,
+    branchId: number,
+    fromDate: string,
+    toDate: string,
+    reportBranchId?: number | null,
+  ) => {
+    const params = new URLSearchParams({
+      org_id: String(orgId),
+      branch_id: String(branchId),
+      from_date: fromDate,
+      to_date: toDate,
+    });
+    if (reportBranchId !== undefined && reportBranchId !== null && reportBranchId > 0) {
+      params.set("report_branch_id", String(reportBranchId));
+    }
+    return `${createApi}/Org/MisReport/MonthlyStatementOfAccounts?${params.toString()}`;
+  },
+
+  getDefaultParCalculation: (query: {
+    orgId: number; branchId: number; fromDate: string; toDate: string;
+    reportBranchId?: number; coId?: number; view: string; page: number; perPage: number;
+  }) => {
+    const params = new URLSearchParams({ org_id: String(query.orgId), branch_id: String(query.branchId), from_date: query.fromDate, to_date: query.toDate, view: query.view, page: String(query.page), per_page: String(query.perPage) });
+    if (query.reportBranchId !== undefined && query.reportBranchId > 0) params.set("report_branch_id", String(query.reportBranchId));
+    if (query.coId !== undefined) params.set("co_id", String(query.coId));
+    return `${createApi}/Org/MisReport/DefaultParCalculation?${params.toString()}`;
+  },
+
+  getLoanPortfolioAnalysis: (query: {
+    orgId: number; branchId: number; fromDate: string; toDate: string;
+    reportBranchId?: number; coId?: number; view: string; page: number; perPage: number;
+  }) => {
+    const params = new URLSearchParams({ org_id: String(query.orgId), branch_id: String(query.branchId), from_date: query.fromDate, to_date: query.toDate, view: query.view, page: String(query.page), per_page: String(query.perPage) });
+    if (query.reportBranchId !== undefined && query.reportBranchId > 0) params.set("report_branch_id", String(query.reportBranchId));
+    if (query.coId !== undefined) params.set("co_id", String(query.coId));
+    return `${createApi}/Org/MisReport/LoanPortfolioAnalysis?${params.toString()}`;
+  },
+
+  // MIS Reports — Receipt Payment Scroll
+  getReceiptPaymentScroll: (
+    orgId: number,
+    branchId: number,
+    fromDate: string,
+    toDate: string,
+    options?: {
+      reportBranchId?: number | string | null;
+      coId?: number | string | null;
+      scrollType?: string | null;
+      view?: string | null;
+      page?: number | null;
+      perPage?: number | null;
+    },
+  ) => {
+    const params = new URLSearchParams({
+      org_id: String(orgId),
+      branch_id: String(branchId),
+      from_date: fromDate,
+      to_date: toDate,
+    });
+    if (
+      options?.reportBranchId !== undefined &&
+      options?.reportBranchId !== null &&
+      options.reportBranchId !== "" &&
+      Number(options.reportBranchId) > 0
+    ) {
+      params.set("report_branch_id", String(options.reportBranchId));
+    }
+    if (
+      options?.coId !== undefined &&
+      options?.coId !== null &&
+      options.coId !== ""
+    ) {
+      params.set("co_id", String(options.coId));
+    }
+    if (options?.scrollType && options.scrollType !== "all") {
+      params.set("scroll_type", String(options.scrollType).toLowerCase());
+    }
+    if (options?.view) {
+      params.set("view", String(options.view).toLowerCase());
+    }
+    if (options?.page && options.page > 1) {
+      params.set("page", String(options.page));
+    }
+    if (options?.perPage) {
+      params.set("per_page", String(options.perPage));
+    }
+    return `${createApi}/Org/MisReport/ReceiptPaymentScroll?${params.toString()}`;
+  },
 
   // MIS Reports — Demand vs Collection
   getDemandVsCollection: (query: {

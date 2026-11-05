@@ -5,13 +5,11 @@ import { useForm } from "react-hook-form";
 import { yupResolver } from "@hookform/resolvers/yup";
 import { useQuery } from "@tanstack/react-query";
 import {
-  endOfMonth,
   format,
   isSameDay,
   isValid,
   startOfDay,
   startOfMonth,
-  subMonths,
 } from "date-fns";
 import { toast } from "sonner";
 import * as yup from "yup";
@@ -24,6 +22,7 @@ import {
 } from "@/container/loan-entry/demand-generation/DemandGenerationApi";
 import { isHeadFlag, resolveOrgBranches } from "@/container/profile/ProfileApi";
 import { getCoPerformanceAPI, mapCoPerformance } from "./CoPerformanceApi";
+import { getDatePresetRange } from "@/common/reportFilters/datePresetRange";
 import {
   CoPerformanceData,
   CoPerformanceForm,
@@ -54,17 +53,6 @@ const flattenMessages = (value: unknown): string => {
 const toApiDate = (value: Date | string | null) => {
   if (value instanceof Date && isValid(value)) return format(value, "yyyy-MM-dd");
   return typeof value === "string" ? value : "";
-};
-
-const parseCookieDate = (value: unknown) => {
-  if (!value) return null;
-  const text = String(value).trim();
-  const iso = text.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  if (iso) return new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
-  const dmy = text.match(/^(\d{2})-(\d{2})-(\d{4})/);
-  if (dmy) return new Date(Number(dmy[3]), Number(dmy[2]) - 1, Number(dmy[1]));
-  const parsed = new Date(text);
-  return isValid(parsed) ? parsed : null;
 };
 
 export const useCoPerformance = () => {
@@ -222,28 +210,7 @@ export const useCoPerformance = () => {
     return Number(values.coId) >= 0 ? "group" : "sahayika";
   };
 
-  const presetRange = (preset: DatePreset) => {
-    const now = new Date();
-    let from = startOfMonth(now);
-    let to = now;
-    if (preset === "lastMonth") {
-      const last = subMonths(now, 1);
-      from = startOfMonth(last);
-      to = endOfMonth(last);
-    }
-    if (preset === "quarter") {
-      const startMonth = Math.floor(now.getMonth() / 3) * 3;
-      from = new Date(now.getFullYear(), startMonth, 1);
-    }
-    if (preset === "fy") {
-      const start = parseCookieDate(getCookieData("priobank-lite-fin_start_date"));
-      const end = parseCookieDate(getCookieData("priobank-lite-fin_end_date"));
-      from = start || startOfMonth(now);
-      to = end && end < now ? end : now;
-      if (to < from) to = from;
-    }
-    return { from, to };
-  };
+  const presetRange = (preset: DatePreset) => getDatePresetRange(preset);
 
   const watchedFrom = methods.watch("fromDate");
   const watchedTo = methods.watch("toDate");

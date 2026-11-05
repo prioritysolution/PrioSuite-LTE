@@ -51,7 +51,8 @@
   "overrides": {
     "@next/eslint-plugin-next": {
       "fast-glob": "npm:tinyglobby@^0.2.15"
-    }
+    },
+    "minimatch": "^11.0.1"
   },
   "allowScripts": {
     "msw@2.12.10": true,
