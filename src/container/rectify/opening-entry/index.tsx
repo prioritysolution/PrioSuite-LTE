@@ -21,23 +21,12 @@ const TAB_CONTENT: Record<OpeningEntryTab, () => React.JSX.Element> = {
 
 const OpeningEntry = () => {
   const [tab, setTab] = useState<OpeningEntryTab>("edit");
-  const [opened, setOpened] = useState<OpeningEntryTab[]>(["edit"]);
-
-  const onTabChange = (next: OpeningEntryTab) => {
-    setTab(next);
-    setOpened((current) => (current.includes(next) ? current : [...current, next]));
-  };
+  const Content = TAB_CONTENT[tab];
 
   return (
-    <OpeningEntryShell tab={tab} onTabChange={onTabChange}>
-      {opened.map((id) => {
-        const Content = TAB_CONTENT[id];
-        return (
-          <div key={id} hidden={id !== tab}>
-            <Content />
-          </div>
-        );
-      })}
+    <OpeningEntryShell tab={tab} onTabChange={setTab}>
+      {/* Remount on tab change so search/form/log filters always start clean. */}
+      <Content key={tab} />
     </OpeningEntryShell>
   );
 };

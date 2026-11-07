@@ -276,13 +276,32 @@ export const useOpeningEntry = () => {
     });
   };
 
-  const onResetSearch = () => {
+  const resetPageState = (options?: { keepResult?: boolean }) => {
     searchForm.reset(emptySearch());
     editForm.reset(emptyEdit());
+    editForm.clearErrors();
+    searchForm.clearErrors();
     setSubmitted(null);
-    setSaveResult(null);
+    if (!options?.keepResult) setSaveResult(null);
     previousGroup.current = "";
     previousMember.current = "";
+    loadedKey.current = "";
+    queryClient.removeQueries({ queryKey: ["openingEntry"] });
+    queryClient.removeQueries({ queryKey: ["openingEntryMembers"] });
+    queryClient.removeQueries({ queryKey: ["openingEntryLoans"] });
+  };
+
+  useEffect(
+    () => () => {
+      queryClient.removeQueries({ queryKey: ["openingEntry"] });
+      queryClient.removeQueries({ queryKey: ["openingEntryMembers"] });
+      queryClient.removeQueries({ queryKey: ["openingEntryLoans"] });
+    },
+    [queryClient],
+  );
+
+  const onResetSearch = () => {
+    resetPageState();
   };
 
   const onSave = async () => {
@@ -345,17 +364,15 @@ export const useOpeningEntry = () => {
         return;
       }
       const result = mapOpeningSaveResult(res);
-      setSaveResult(result);
       toast.success(
         result.schedule.scheduleUpdated || result.schedule.rowsUpdated > 0
           ? `${result.message} Pending schedule updated.`
           : result.message,
       );
-      loadedKey.current = "";
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["openingEntry"] }),
-        queryClient.invalidateQueries({ queryKey: ["openingEntryLog"] }),
-      ]);
+      // Clear loan/form selection after save; keep the success banner on a clean page.
+      resetPageState({ keepResult: true });
+      setSaveResult(result);
+      void queryClient.invalidateQueries({ queryKey: ["openingEntryLog"] });
     } catch (error: unknown) {
       const body = errorBody(error);
       const fieldErrors =
