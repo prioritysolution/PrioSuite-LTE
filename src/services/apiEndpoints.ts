@@ -268,6 +268,10 @@ export const endPoints = {
   getOpeningEntry: (query: string) =>
     `${createApi}/Org/Rectify/GetOpeningEntry?${query}`,
   postOpeningEntry: `${createApi}/Org/Rectify/PostOpeningEntry`,
+  getOpeningEntryLog: (query: string) =>
+    `${createApi}/Org/Rectify/GetOpeningEntryLog?${query}`,
+  getOpeningEntryLogDetails: (query: string) =>
+    `${createApi}/Org/Rectify/GetOpeningEntryLogDetails?${query}`,
 
   // Customer Reports — Group Register
   getGroupRegister: (

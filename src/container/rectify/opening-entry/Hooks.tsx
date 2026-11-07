@@ -19,12 +19,15 @@ import {
   mapLoans,
   mapMembers,
   mapOpeningEntry,
+  mapOpeningSaveResult,
   postOpeningEntryAPI,
+  projectSchedule,
   responseMessage,
 } from "./OpeningEntryApi";
 import {
   OPENING_ENTRY_DATE,
   OpeningEditForm,
+  OpeningSaveResult,
   OpeningSearchForm,
   OpeningSearchParams,
   REASON_MAX_LENGTH,
@@ -81,6 +84,7 @@ export const useOpeningEntry = () => {
 
   const [submitted, setSubmitted] = useState<OpeningSearchParams | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveResult, setSaveResult] = useState<OpeningSaveResult | null>(null);
   const previousGroup = useRef(groupId);
   const previousMember = useRef(memberId);
   const loadedKey = useRef("");
@@ -91,6 +95,7 @@ export const useOpeningEntry = () => {
     searchForm.setValue("memberId", "");
     searchForm.setValue("loanKey", "");
     setSubmitted(null);
+    setSaveResult(null);
   }, [groupId, searchForm]);
 
   useEffect(() => {
@@ -98,6 +103,7 @@ export const useOpeningEntry = () => {
     previousMember.current = memberId;
     searchForm.setValue("loanKey", "");
     setSubmitted(null);
+    setSaveResult(null);
   }, [memberId, searchForm]);
 
   const groupQuery = useQuery({
@@ -199,6 +205,8 @@ export const useOpeningEntry = () => {
       entry.loanCycle,
       entry.openingBalance,
       entry.currentBalance,
+      entry.schedule.pendingInstCount,
+      entry.schedule.pendingPrincipal,
     ].join("|");
     if (loadedKey.current === fingerprint) return;
     loadedKey.current = fingerprint;
@@ -215,6 +223,13 @@ export const useOpeningEntry = () => {
     entry && openingIsNumber
       ? projectCurrent(entry.openingBalance, entry.currentBalance, parsedOpening)
       : entry?.currentBalance ?? null;
+  const projectedSchedule =
+    entry && openingIsNumber
+      ? projectSchedule(
+          entry.schedule,
+          round2(parsedOpening - entry.openingBalance),
+        )
+      : entry?.schedule ?? null;
   const minOpening = entry
     ? minimumOpening(entry.openingBalance, entry.currentBalance)
     : 0;
@@ -223,6 +238,7 @@ export const useOpeningEntry = () => {
 
   const onSearch = () => {
     searchForm.clearErrors();
+    setSaveResult(null);
     const values = searchForm.getValues();
     let valid = true;
     if (!isId(values.groupId)) {
@@ -264,6 +280,7 @@ export const useOpeningEntry = () => {
     searchForm.reset(emptySearch());
     editForm.reset(emptyEdit());
     setSubmitted(null);
+    setSaveResult(null);
     previousGroup.current = "";
     previousMember.current = "";
   };
@@ -310,6 +327,7 @@ export const useOpeningEntry = () => {
     }
 
     setSaving(true);
+    setSaveResult(null);
     try {
       const res = await postOpeningEntryAPI({
         org_id: orgId,
@@ -326,9 +344,18 @@ export const useOpeningEntry = () => {
         toast.error(responseMessage(res, "Unable to update the opening balance."));
         return;
       }
-      toast.success(responseMessage(res, "Opening balance updated."));
+      const result = mapOpeningSaveResult(res);
+      setSaveResult(result);
+      toast.success(
+        result.schedule.scheduleUpdated || result.schedule.rowsUpdated > 0
+          ? `${result.message} Pending schedule updated.`
+          : result.message,
+      );
       loadedKey.current = "";
-      await queryClient.invalidateQueries({ queryKey: ["openingEntry"] });
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["openingEntry"] }),
+        queryClient.invalidateQueries({ queryKey: ["openingEntryLog"] }),
+      ]);
     } catch (error: unknown) {
       const body = errorBody(error);
       const fieldErrors =
@@ -370,9 +397,12 @@ export const useOpeningEntry = () => {
     openingText,
     reasonText,
     projectedCurrent,
+    projectedSchedule,
     minOpening,
     currentIsNegative,
     saving,
+    saveResult,
+    onDismissResult: () => setSaveResult(null),
     onSearch,
     onResetSearch,
     onSave,
