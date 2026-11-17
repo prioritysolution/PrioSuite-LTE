@@ -264,6 +264,15 @@ export const endPoints = {
   getLoanRectifyLogDetails: (query: string) =>
     `${createApi}/Org/Rectify/GetLoanIssueRectifyLogDetails?${query}`,
 
+  // Rectify — Loan Opening Entry (date is always 2026-03-31)
+  getOpeningEntry: (query: string) =>
+    `${createApi}/Org/Rectify/GetOpeningEntry?${query}`,
+  postOpeningEntry: `${createApi}/Org/Rectify/PostOpeningEntry`,
+  getOpeningEntryLog: (query: string) =>
+    `${createApi}/Org/Rectify/GetOpeningEntryLog?${query}`,
+  getOpeningEntryLogDetails: (query: string) =>
+    `${createApi}/Org/Rectify/GetOpeningEntryLogDetails?${query}`,
+
   // Customer Reports — Group Register
   getGroupRegister: (
     orgId: number,
