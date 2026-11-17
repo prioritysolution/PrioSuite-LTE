@@ -29,7 +29,30 @@ const metrics = [
 const LoanPortfolioComponent = ({ form, loading, exporting, isHead, branchName, branchOptions, branchLoading, sahayikaOptions, sahayikaLoading, report, error, dropdownError, onShow, onBranchChange, onPreset, activePreset, onPageChange, onPerPageChange, prepareExport }: LoanPortfolioProps) => {
   const [printReport, setPrintReport] = useState<LoanPortfolioData | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
-  const print = useReactToPrint({ contentRef: printRef, documentTitle: "Loan_Portfolio_Analysis" });
+  const print = useReactToPrint({
+    contentRef: printRef,
+    documentTitle: "Loan_Portfolio_Analysis",
+    pageStyle: `
+      @page {
+        size: A4 landscape;
+        margin: 5mm;
+      }
+      @media print {
+        html, body {
+          width: 100% !important;
+          height: auto !important;
+          min-height: 0 !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: visible !important;
+          background: #fff !important;
+          color: #000 !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+      }
+    `,
+  });
   const handleExport = async (kind: "excel" | "csv" | "print") => {
     const complete = await prepareExport();
     if (!complete) return;
